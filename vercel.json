@@ -1,1 +1,7 @@
-{}
+{
+  "functions": {
+    "api/iching.js": {
+      "maxDuration": 60
+    }
+  }
+}
