@@ -279,29 +279,6 @@
 
         <footer class="footer">
             <div class="footer-grid">
-                <div class="iching-container">
-                    <div class="section-header-flex">
-                        <div style="display: flex; align-items: center; gap: 8px;">
-                            <h3 class="section-title" style="margin: 0;">1일 1주역</h3>
-                            <div style="display: flex; gap: 4px;">
-                                <button class="tts-btn tts-speed-btn" onclick="changeTTSSpeed()" title="속도 조절" style="width: auto; padding: 0 6px; font-size: 0.7rem; border-radius: var(--r-sm);">1.00x</button>
-                                <button class="tts-btn" onclick="toggleTTS('iching')" id="tts-btn-iching" title="읽기/정지">🔊</button>
-                                <button class="tts-btn" onclick="pauseTTS()" id="tts-pause-iching" title="일시정지/재개" style="display: none;">⏸️</button>
-                            </div>
-                        </div>
-                        <div class="nav-buttons">
-                            <select id="iching-select" class="nav-select" onchange="jumpToIChing(this.value)">
-                                <!-- Options injected via JS -->
-                            </select>
-                            <button class="nav-btn" onclick="changeOffset('iching', -1)" title="이전">&#10094;</button>
-                            <span id="iching-date" class="nav-date">오늘</span>
-                            <button class="nav-btn" onclick="changeOffset('iching', 1)" title="다음">&#10095;</button>
-                        </div>
-                    </div>
-                    <div id="iching-content" class="iching-content">
-                        <!-- I Ching content injected here -->
-                    </div>
-                </div>
             <section class="philosophy-section">
                 <div class="section-header-flex">
                     <div style="display: flex; align-items: center; gap: 8px;">
@@ -382,6 +359,29 @@
                     </div>
                 </div>
             </section>
+                <div class="iching-container">
+                    <div class="section-header-flex">
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <h3 class="section-title" style="margin: 0;">1일 1주역</h3>
+                            <div style="display: flex; gap: 4px;">
+                                <button class="tts-btn tts-speed-btn" onclick="changeTTSSpeed()" title="속도 조절" style="width: auto; padding: 0 6px; font-size: 0.7rem; border-radius: var(--r-sm);">1.00x</button>
+                                <button class="tts-btn" onclick="toggleTTS('iching')" id="tts-btn-iching" title="읽기/정지">🔊</button>
+                                <button class="tts-btn" onclick="pauseTTS()" id="tts-pause-iching" title="일시정지/재개" style="display: none;">⏸️</button>
+                            </div>
+                        </div>
+                        <div class="nav-buttons">
+                            <select id="iching-select" class="nav-select" onchange="jumpToIChing(this.value)">
+                                <!-- Options injected via JS -->
+                            </select>
+                            <button class="nav-btn" onclick="changeOffset('iching', -1)" title="이전">&#10094;</button>
+                            <span id="iching-date" class="nav-date">오늘</span>
+                            <button class="nav-btn" onclick="changeOffset('iching', 1)" title="다음">&#10095;</button>
+                        </div>
+                    </div>
+                    <div id="iching-content" class="iching-content">
+                        <!-- I Ching content injected here -->
+                    </div>
+                </div>
             </div>
         </footer>
     </div>
