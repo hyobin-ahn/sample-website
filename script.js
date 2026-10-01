@@ -5,37 +5,13 @@ let offsets = { philosophy: 0, iching: 0 };
 
 document.addEventListener('DOMContentLoaded', () => {
     initWeather();
+    
     // Timeframe buttons
-    const btns = document.querySelectorAll('.timeframe-btn');
-    btns.forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            btns.forEach(b => b.classList.remove('active'));
-            e.target.classList.add('active');
-            const period = e.target.getAttribute('data-period');
-            updateAllCharts(period);
-        });
-    });
     
     initIChing();
     initPhilosophy();
+    initShortcuts();
 });
-
-async function updateAllCharts(period) {
-}
-
-// --- 1. Weather (Open-Meteo API) ---
-const LOCATIONS = {
-    paju: { lat: 37.7599, lon: 126.7779 },
-    seoul: { lat: 37.5665, lon: 126.9780 },
-    jeju: { lat: 33.4996, lon: 126.5312 }
-};
-
-const WMO_CODES = {
-    0: '맑음', 1: '대체로 맑음', 2: '구름 조금', 3: '흐림',
-    45: '안개', 48: '안개', 51: '가벼운 비', 53: '비', 55: '강한 비',
-    61: '가벼운 비', 63: '비', 65: '강한 비', 71: '가벼운 눈', 73: '눈', 75: '강한 눈',
-    80: '소나기', 95: '뇌우', 96: '뇌우/우박', 99: '뇌우/우박'
-};
 
 async function updateWeatherWidget() {
     try {
@@ -218,9 +194,8 @@ function initWeather() {
     updateWeatherWidget();
 }
 
-
-
-// --- 3. Daily I Ching ---
+// --- 2. Calendar (Custom ICS Parser) ---
+// ical.js 대신 직접 파싱하여 텍스트 깨짐이나 형식이 다른 파일을 더 유연하게 처리합니다.
 function initIChing(offset = 0) {
     const container = document.getElementById('iching-content');
     if (typeof ichingData === 'undefined' || ichingData.length === 0) {
@@ -252,7 +227,7 @@ function initIChing(offset = 0) {
     // Update UI label
     const dateEl = document.getElementById('iching-date');
     if (dateEl) {
-        dateEl.textContent = index === 0 ? '오늘' : `${index + 1}`;
+        dateEl.textContent = offset === 0 ? '오늘' : `${index + 1}`;
     }
     
     if (selectEl) selectEl.value = index;
@@ -431,8 +406,7 @@ window.fetchIchingAI = async function(index) {
     }
 }
 
-// --- 6. Today's Philosophy ---
-
+// --- 4. Today's Saju (Fortune) ---
 function toggleDeleuzeOverview() {
     const content = document.getElementById('deleuze-overview-content');
     const btn = document.getElementById('deleuze-toggle-btn');
@@ -487,8 +461,8 @@ function initPhilosophy(forceIndex = null) {
         philosophyData.forEach((item, idx) => {
             const opt = document.createElement('option');
             opt.value = idx;
-            // 옵션 텍스트는 "[챕터] 1. 제목" 형식에서 챕터 제외하고 간략히
-            opt.textContent = `${idx + 1}. ${item.title.replace(/^\[.*?\]\s*/, '').substring(0, 25)}...`;
+            // 옵션 텍스트는 "[챕터] 1. 제목" 형식에서 챕터와 숫자 제외하고 간략히
+            opt.textContent = `${idx + 1}. ${item.title.replace(/^(?:\[.*?\]\s*)?(?:\d+\.\s*)?/, '').substring(0, 25)}...`;
             selectEl.appendChild(opt);
         });
         selectEl.style.display = 'inline-block';
@@ -667,7 +641,7 @@ window.showPhilChapterPreview = function(index, btnEl = null) {
     }
 };
 
-// --- Navigation ---
+// --- 5. KOSPI & Stocks ---
 function changeOffset(type, direction) {
     if (type === 'philosophy') {
         const len = (typeof philosophyData !== 'undefined' && philosophyData.length) ? philosophyData.length : 100;
@@ -679,9 +653,7 @@ function changeOffset(type, direction) {
         offsets.iching = (offsets.iching + direction) % len;
         if (offsets.iching < 0) offsets.iching += len;
         initIChing(offsets.iching);
-    } else if (type === 'saju') {
-        offsets.saju += direction;
-        }
+    }
 }
 
 function jumpToPhilosophy(index) {
@@ -749,7 +721,7 @@ window.toggleTTS = function(section) {
     
     // 섹션별 텍스트 가져오기
     let textToRead = '';
-    let contentEl = document.getElementById(section.startsWith('saju') ? 'saju-content' : `${section}-content`);
+    let contentEl = document.getElementById(`${section}-content`);
     if (!contentEl) contentEl = document.getElementById(section);
     
     if (contentEl) {
@@ -766,21 +738,6 @@ window.toggleTTS = function(section) {
         clone.innerHTML = htmlStr;
         
         textToRead = clone.textContent || '';
-        
-        if (section === 'saju_analysis') {
-            const part1Start = textToRead.indexOf("오행 정밀 분석");
-            const part1End = textToRead.indexOf("오늘의 일진 오행");
-            
-            if (part1Start !== -1 && part1End !== -1) {
-                textToRead = textToRead.substring(part1Start, part1End);
-            }
-        } else if (section === 'saju_fortune') {
-            const part2Start = textToRead.indexOf("사주와 오늘의 기운 교류");
-            
-            if (part2Start !== -1) {
-                textToRead = textToRead.substring(part2Start);
-            }
-        }
         
         // 이모지 및 특수 기호 완벽 제거
         textToRead = textToRead.replace(/[\u2700-\u27BF]|[\uE000-\uF8FF]|\uD83C[\uDC00-\uDFFF]|\uD83D[\uDC00-\uDFFF]|[\u2011-\u26FF]|\uD83E[\uDD10-\uDDFF]/g, '');
@@ -844,3 +801,153 @@ window.pauseTTS = function() {
         }
     }
 };
+
+// --- Shortcuts Management ---
+const DEFAULT_SHORTCUTS = [
+    { name: "채팅", url: "https://chat.openai.com", icon: "https://upload.wikimedia.org/wikipedia/commons/0/04/ChatGPT_logo.svg" },
+    { name: "Microsoft 365", url: "https://www.office.com", icon: "https://upload.wikimedia.org/wikipedia/commons/5/5f/Microsoft_Office_logo_%282019%E2%80%93present%29.svg" },
+    { name: "YouTube", url: "https://www.youtube.com", icon: "https://upload.wikimedia.org/wikipedia/commons/0/09/YouTube_full-color_icon_%282017%29.svg" }
+];
+
+window.shortcutEditIndex = -1;
+
+function initShortcuts() {
+    renderShortcuts();
+    
+    // Setup modal event listeners
+    const modal = document.getElementById('shortcut-modal');
+    const title = document.getElementById('shortcut-modal-title');
+    const cancelBtn = document.getElementById('shortcut-cancel-btn');
+    const saveBtn = document.getElementById('shortcut-save-btn');
+    const deleteBtn = document.getElementById('shortcut-delete-btn');
+    const nameInput = document.getElementById('shortcut-name-input');
+    const urlInput = document.getElementById('shortcut-url-input');
+
+    if (!modal) return;
+
+    window.closeShortcutModal = function() {
+        modal.style.display = 'none';
+        nameInput.value = '';
+        urlInput.value = '';
+        window.shortcutEditIndex = -1;
+    }
+
+    cancelBtn.onclick = window.closeShortcutModal;
+
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) window.closeShortcutModal();
+    });
+
+    deleteBtn.onclick = () => {
+        if (window.shortcutEditIndex >= 0) {
+            if(confirm('이 바로가기를 삭제하시겠습니까?')) {
+                let shortcuts = JSON.parse(localStorage.getItem('my_shortcuts')) || DEFAULT_SHORTCUTS;
+                shortcuts.splice(window.shortcutEditIndex, 1);
+                localStorage.setItem('my_shortcuts', JSON.stringify(shortcuts));
+                renderShortcuts();
+                window.closeShortcutModal();
+            }
+        }
+    };
+
+    saveBtn.onclick = () => {
+        const name = nameInput.value.trim();
+        let url = urlInput.value.trim();
+        
+        if (!name || !url) {
+            alert('이름과 URL을 모두 입력해주세요.');
+            return;
+        }
+        
+        if (!url.startsWith('http')) {
+            url = 'https://' + url;
+        }
+        
+        try {
+            const domain = new URL(url).hostname;
+            const icon = `https://www.google.com/s2/favicons?domain=${domain}&sz=128`;
+            
+            let shortcuts = JSON.parse(localStorage.getItem('my_shortcuts')) || DEFAULT_SHORTCUTS;
+            
+            if (window.shortcutEditIndex >= 0) {
+                // Edit
+                shortcuts[window.shortcutEditIndex] = { name, url, icon };
+            } else {
+                // Add
+                shortcuts.push({ name, url, icon });
+            }
+            
+            localStorage.setItem('my_shortcuts', JSON.stringify(shortcuts));
+            
+            renderShortcuts();
+            window.closeShortcutModal();
+        } catch (e) {
+            alert('올바른 URL 형식이 아닙니다.');
+        }
+    };
+}
+
+function renderShortcuts() {
+    const container = document.getElementById('shortcuts-container');
+    if (!container) return;
+    
+    let shortcuts = JSON.parse(localStorage.getItem('my_shortcuts'));
+    if (!shortcuts) {
+        shortcuts = DEFAULT_SHORTCUTS;
+        localStorage.setItem('my_shortcuts', JSON.stringify(shortcuts));
+    }
+    
+    container.innerHTML = '';
+    
+    shortcuts.forEach((sc, index) => {
+        const a = document.createElement('a');
+        a.href = sc.url;
+        a.className = 'shortcut-item';
+        a.target = '_blank';
+        a.title = sc.name + ' (우클릭하여 편집)';
+        
+        // Right click to edit
+        a.oncontextmenu = (e) => {
+            e.preventDefault();
+            window.shortcutEditIndex = index;
+            const modal = document.getElementById('shortcut-modal');
+            if (modal) {
+                document.getElementById('shortcut-modal-title').textContent = '바로가기 편집';
+                document.getElementById('shortcut-name-input').value = sc.name;
+                document.getElementById('shortcut-url-input').value = sc.url;
+                document.getElementById('shortcut-delete-btn').style.display = 'block';
+                modal.style.display = 'flex';
+                document.getElementById('shortcut-name-input').focus();
+            }
+        };
+        
+        a.innerHTML = `
+            <div class="shortcut-icon">
+                <img src="${sc.icon}" class="shortcut-favicon" alt="${sc.name}" onerror="this.outerHTML='<div class=\\'fallback-icon\\'>${sc.name.charAt(0)}</div>'">
+            </div>
+            <span class="shortcut-label">${sc.name}</span>
+        `;
+        container.appendChild(a);
+    });
+    
+    const addBtn = document.createElement('div');
+    addBtn.className = 'shortcut-item add-shortcut';
+    addBtn.title = '새 바로가기 추가';
+    addBtn.onclick = () => {
+        window.shortcutEditIndex = -1;
+        const modal = document.getElementById('shortcut-modal');
+        if (modal) {
+            document.getElementById('shortcut-modal-title').textContent = '바로가기 추가';
+            document.getElementById('shortcut-delete-btn').style.display = 'none';
+            modal.style.display = 'flex';
+            document.getElementById('shortcut-name-input').focus();
+        }
+    };
+    addBtn.innerHTML = `
+        <div class="shortcut-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+        </div>
+        <span class="shortcut-label">추가</span>
+    `;
+    container.appendChild(addBtn);
+}
