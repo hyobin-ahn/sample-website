@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title>SDU Custom Homepage</title>
+    <link rel="stylesheet" href="styles.css?v=20260917_16">
+    <!-- iCal parser -->
+    
+    
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&family=Noto+Sans+KR:wght@300;400;700&display=swap" rel="stylesheet">
+    
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <div class="logo-container">
+                <a href="https://www-legacy.sdu.ac.kr/login/login.asp?MENU_ID=1690&CONTENTS_NO=1" target="_blank" title="SDU Î°úÍ∑∏??>
+                    SDU
+                </a>
+            </div>
+            
+            <div class="header-weather-widget">
+                <div class="hww-loc" id="weather-location">Í≥†Ïñë???ïÏù¥??/div>
+                <div class="hww-info">
+                    <div class="hww-temp">
+                        <span class="weather-temp">--¬∞</span>
+                    </div>
+                    <div class="hww-subinfo">
+                        <div class="hww-desc-hl">
+                            <span class="weather-desc">--</span>
+                            <span class="weather-highlow"><span class="w-low">--¬∞</span> / <span class="w-high">--¬∞</span></span>
+                        </div>
+                        <div class="weather-dust">ÎØ∏ÏÑ∏ -- ¬∑ Ï¥àÎ???--</div>
+                    </div>
+                </div>
+                
+                <div class="hww-chart-area">
+                    <div class="chart-container">
+                        <canvas id="weatherMiniChart"></canvas>
+                    </div>
+                    <div class="weather-forecast-row"></div>
+                </div>
+            </div>
+        </header>
+
+        <main class="main-content">
+            <div class="search-container" style="flex-direction: column; align-items: center; gap: 16px; padding: 30px 0;">
+                <!-- Google Search -->
+                <form action="https://www.google.com/search" method="get" class="search-form" style="position: relative;">
+                    <svg style="position: absolute; left: 16px; top: 50%; transform: translateY(-50%); z-index: 1;" viewBox="0 0 24 24" width="22" height="22" xmlns="http://www.w3.org/2000/svg"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
+                    <input type="text" name="q" class="search-input" placeholder="" required autofocus autocomplete="off" style="padding-left: 48px; padding-right: 90px;">
+                    <div style="position: absolute; right: 5px; top: 50%; transform: translateY(-50%); display: flex; gap: 4px;">
+                        <button type="submit" class="search-btn" title="Google Í≤Ä?? style="position: static; transform: none; background: transparent;">
+                            <svg focusable="false" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z" fill="currentColor"></path></svg>
+                        </button>
+                        <button type="button" class="search-btn gemini-btn" title="Gemini ÏßàÎ¨∏ (?¥Î¶ΩÎ≥¥Îìú ?êÎèô Î≥µÏÇ¨)" onclick="const q = this.form.q.value.trim(); if(q) { navigator.clipboard.writeText(q).then(() => { alert('ÏßàÎ¨∏??Î≥µÏÇ¨?òÏóà?µÎãà?? Gemini Ï∞ΩÏóê??Ctrl+VÎ°?Î∂ôÏó¨?£Ïñ¥ Ï£ºÏÑ∏??'); window.open('https://gemini.google.com/app', '_blank'); }).catch(() => window.open('https://gemini.google.com/app', '_blank')); } else { window.open('https://gemini.google.com/app', '_blank'); }" style="position: static; transform: none; color: #5c7cfa; background: transparent;">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24"><path fill="currentColor" d="M19 2.5L17.5 6L14 7.5L17.5 9L19 12.5L20.5 9L24 7.5L20.5 6L19 2.5ZM10.5 11L7 3.5L3.5 11L-4 14.5L3.5 18L7 25.5L10.5 18L18 14.5L10.5 11ZM7 18.26L8.46 15.11L11.61 13.65L8.46 12.19L7 9.04L5.54 12.19L2.39 13.65L5.54 15.11L7 18.26Z" transform="translate(1, -1) scale(0.9)"/></svg>
+                        </button>
+                    </div>
+                </form>
+
+                <!-- Naver Search -->
+                <form action="https://search.naver.com/search.naver" method="get" class="search-form" style="position: relative;">
+                    <span style="position: absolute; left: 22px; top: 50%; transform: translateY(-50%); font-weight: 900; font-size: 1.4rem; color: #03c75a; user-select: none; font-family: sans-serif;">N</span>
+                    <input type="text" name="query" class="search-input" placeholder="" required autocomplete="off" style="padding-left: 54px; padding-right: 120px; border-color: rgba(3, 199, 90, 0.6); background: rgba(3, 199, 90, 0.02);">
+                    <div style="position: absolute; right: 5px; top: 50%; transform: translateY(-50%); display: flex; align-items: center; gap: 4px;">
+                        <button type="submit" class="search-btn" title="?§Ïù¥Î≤?Í≤Ä?? style="position: static; transform: none; background: transparent;">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="url(#search-grad)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                <defs>
+                                    <linearGradient id="search-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+                                        <stop offset="0%" stop-color="#03c75a" />
+                                        <stop offset="100%" stop-color="#00D4FF" />
+                                    </linearGradient>
+                                </defs>
+                                <circle cx="11" cy="11" r="8"></circle>
+                                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                            </svg>
+                        </button>
+                        <button type="button" class="search-btn clova-btn" title="?§Ïù¥Î≤?AI ??úºÎ°?Í≤Ä?? onclick="const q = this.form.query.value.trim(); if(q) { window.open(`https://search.naver.com/search.naver?query=${encodeURIComponent(q)}&ssc=tab.ait.all`, '_blank'); } else { window.open('https://search.naver.com/search.naver?ssc=tab.ait.all', '_blank'); }" style="position: static; transform: none; background: transparent;">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="22" height="22">
+                                <defs>
+                                    <linearGradient id="ai-grad" x1="2" y1="12" x2="22" y2="12" gradientUnits="userSpaceOnUse">
+                                        <stop offset="0%" stop-color="#00E9D1" />
+                                        <stop offset="100%" stop-color="#4A75FF" />
+                                    </linearGradient>
+                                    <filter id="ai-shadow" x="-20%" y="-20%" width="140%" height="140%">
+                                        <feDropShadow dx="-1" dy="1" stdDeviation="0.5" flood-color="#000" flood-opacity="0.3" />
+                                    </filter>
+                                </defs>
+                                <g transform="translate(12, 12)">
+                                    <rect x="-9.5" y="-4.5" width="19" height="9" rx="4.5" transform="rotate(-45)" fill="url(#ai-grad)" />
+                                    <rect x="-9.5" y="-4.5" width="19" height="9" rx="4.5" transform="rotate(45)" fill="url(#ai-grad)" filter="url(#ai-shadow)" />
+                                </g>
+                            </svg>
+                        </button>
+                    </div>
+                </form>
+                
+                <div id="shortcuts-container" class="shortcuts-row"></div>
+            </div>
+
+            <style>
+            /* ?Ä?Ä Shortcuts Row ?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä */
+            .shortcuts-row {
+              display: flex;
+              gap: 24px;
+              margin-top: 15px;
+              justify-content: center;
+              flex-wrap: wrap;
+            }
+            .shortcut-item {
+              display: flex;
+              flex-direction: column;
+              align-items: center;
+              gap: 8px;
+              text-decoration: none;
+              cursor: pointer;
+              transition: transform 0.2s ease;
+            }
+            .shortcut-item:hover {
+              transform: translateY(-3px);
+            }
+            .shortcut-icon {
+              width: 52px;
+              height: 52px;
+              background-color: rgba(255, 255, 255, 0.08);
+              border-radius: 14px;
+              display: flex;
+              justify-content: center;
+              align-items: center;
+              backdrop-filter: blur(5px);
+              border: 1px solid rgba(255, 255, 255, 0.1);
+              transition: background-color 0.2s ease, box-shadow 0.2s ease;
+            }
+            .shortcut-item:hover .shortcut-icon {
+              background-color: rgba(255, 255, 255, 0.15);
+              box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            }
+            .shortcut-icon img, .shortcut-icon svg {
+              width: 28px;
+              height: 28px;
+              object-fit: contain;
+            }
+            .shortcut-icon img.shortcut-favicon {
+              width: 32px;
+              height: 32px;
+              border-radius: 4px;
+            }
+            .shortcut-label {
+              color: var(--text-primary);
+              font-size: 0.85rem;
+              font-weight: 500;
+              text-shadow: 0 1px 3px rgba(0,0,0,0.6);
+            }
+            .add-shortcut .shortcut-icon svg {
+              fill: var(--text-primary);
+              opacity: 0.8;
+            }
+            .add-shortcut:hover .shortcut-icon svg {
+              opacity: 1;
+            }
+            .fallback-icon {
+              font-size: 20px;
+              font-weight: bold;
+              color: #fff;
+              text-transform: uppercase;
+            }
+            
+            /* ?Ä?Ä Shortcut Modal ?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä */
+            .modal-overlay {
+              position: fixed;
+              top: 0; left: 0; right: 0; bottom: 0;
+              background: rgba(0, 0, 0, 0.6);
+              backdrop-filter: blur(4px);
+              display: none;
+              justify-content: center;
+              align-items: center;
+              z-index: 9999;
+            }
+            .shortcut-modal-content {
+              background: var(--surface);
+              border: 1px solid var(--border);
+              border-radius: var(--r-md);
+              padding: 24px;
+              width: 320px;
+              box-shadow: var(--shadow-lg);
+            }
+            .shortcut-modal-content h3 {
+              color: var(--text-primary);
+              margin-bottom: 20px;
+              font-size: 1.1rem;
+              text-align: center;
+            }
+            .shortcut-modal-content .input-group {
+              margin-bottom: 16px;
+            }
+            .shortcut-modal-content label {
+              display: block;
+              color: var(--text-secondary);
+              font-size: 0.85rem;
+              margin-bottom: 6px;
+            }
+            .shortcut-modal-content input {
+              width: 100%;
+              background: var(--bg);
+              border: 1px solid var(--border);
+              color: var(--text-primary);
+              padding: 10px 12px;
+              border-radius: 8px;
+              outline: none;
+              font-family: inherit;
+            }
+            .shortcut-modal-content input:focus {
+              border-color: var(--accent);
+            }
+            .shortcut-modal-content .modal-buttons {
+              display: flex;
+              justify-content: flex-end;
+              gap: 10px;
+              margin-top: 24px;
+            }
+            .btn-secondary {
+              background: transparent;
+              color: var(--text-secondary);
+              border: 1px solid var(--text-secondary);
+              padding: 8px 16px;
+              border-radius: 6px;
+              cursor: pointer;
+              font-family: inherit;
+              transition: all 0.2s ease;
+            }
+            .btn-secondary:hover {
+              background: rgba(255,255,255,0.1);
+              color: var(--text-primary);
+            }
+            .btn-danger {
+              background: rgba(248, 113, 113, 0.1);
+              color: var(--red);
+              border: 1px solid var(--red);
+              padding: 8px 16px;
+              border-radius: 6px;
+              cursor: pointer;
+              font-family: inherit;
+              transition: all 0.2s ease;
+            }
+            .btn-danger:hover {
+              background: var(--red);
+              color: #fff;
+            }
+            </style>
+
+            <!-- Shortcut Modal Structure -->
+            <div id="shortcut-modal" class="modal-overlay">
+                <div class="shortcut-modal-content">
+                    <h3 id="shortcut-modal-title">Î∞îÎ°úÍ∞ÄÍ∏?Ï∂îÍ?</h3>
+                    <div class="input-group">
+                        <label>?¥Î¶Ñ</label>
+                        <input type="text" id="shortcut-name-input" placeholder="?? ?òÏù¥?§Î∂Å" autocomplete="off">
+                    </div>
+                    <div class="input-group">
+                        <label>URL</label>
+                        <input type="text" id="shortcut-url-input" placeholder="?? facebook.com" autocomplete="off">
+                    </div>
+                    <div class="modal-buttons">
+                        <button id="shortcut-delete-btn" class="btn-danger" style="display: none; margin-right: auto;">??†ú</button>
+                        <button id="shortcut-cancel-btn" class="btn-secondary">Ï∑®ÏÜå</button>
+                        <button id="shortcut-save-btn" class="btn-primary">?Ä??/button>
+                    </div>
+                </div>
+            </div>
+
+
+
+            <div class="calendar-container">
+                <div class="calendar-header">
+                    <h2>?ºÏ†ï</h2>
+                    <a href="https://calendar.google.com/calendar/u/0/r" target="_blank" class="btn-primary">Ï∫òÎ¶∞??/a>
+                </div>
+                <div id="events-list" class="events-list">
+                    <p class="loading">?ºÏ†ï??Î∂àÎü¨?§Îäî Ï§ëÏûÖ?àÎã§... (Î°úÏª¨ ?úÎ≤Ñ ?òÍ≤Ω ?ÑÏöî)</p>
+                </div>
+            </div>
+
+            <section class="stocks-section">
+                
+                <div class="kospi-container" id="kospi-container" style="margin-bottom: 5px;">
+                    <!-- KOSPI will be injected here -->
+                    <div style="text-align:center; color: var(--text-secondary); padding: 10px;">ÏΩîÏä§???ïÎ≥¥ Î∂àÎü¨?§Îäî Ï§?..</div>
+                </div>
+                
+                <div style="text-align: center; margin-bottom: 15px;">
+                    <button onclick="toggleStocks()" id="stocks-toggle-btn" class="nav-btn toggle-btn" title="?ëÍ∏∞/?ºÏπòÍ∏?><svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" class="chevron-icon"><polyline points="6 9 12 15 18 9"></polyline></svg></button>
+                </div>
+                
+                <div class="stocks-grid" id="stocks-grid" style="display: none;">
+                    <!-- Stock cards will be injected here -->
+                    <div style="text-align:center; color: var(--text-secondary); padding: 20px; grid-column: 1 / -1;">Ï£ºÏãù ?∞Ïù¥??Î∂àÎü¨?§Îäî Ï§?..</div>
+                </div>
+            </section>
+            
+            <section class="philosophy-section">
+                <div class="section-header-flex">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <h3 class="section-title" style="margin: 0;">1??1?§Î¢∞Ï¶?/h3>
+                        <div style="display: flex; gap: 4px;">
+                            <button class="tts-btn tts-speed-btn" onclick="changeTTSSpeed()" title="?çÎèÑ Ï°∞Ï†à" style="width: auto; padding: 0 6px; font-size: 0.7rem; border-radius: var(--r-sm);">1.00x</button>
+                            <button class="tts-btn" onclick="toggleTTS('philosophy')" id="tts-btn-philosophy" title="?ΩÍ∏∞/?ïÏ?">?îä</button>
+                            <button class="tts-btn" onclick="pauseTTS()" id="tts-pause-philosophy" title="?ºÏãú?ïÏ?/?¨Í∞ú" style="display: none;">?∏Ô∏è</button>
+                        </div>
+                    </div>
+                    <div class="nav-buttons">
+                        <select id="philosophy-select" class="nav-select" onchange="jumpToPhilosophy(this.value)" style="margin-right: 10px; background: var(--bg-1); color: var(--text-primary); border: 1px solid var(--border); border-radius: 4px; padding: 2px 5px; max-width: 150px;">
+                        </select>
+                        <button class="nav-btn" onclick="changeOffset('philosophy', -1)">&#10094;</button>
+                        <span id="philosophy-date" class="nav-date">?§Îäò</span>
+                        <button class="nav-btn" onclick="changeOffset('philosophy', 1)">&#10095;</button>
+                    </div>
+                </div>
+                
+                <div id="philosophy-content" class="philosophy-content">
+                    <div style="text-align:center; color: var(--text-secondary); padding: 20px;">?§Î¢∞Ï¶?Ï≤†Ìïô ?ïÎ≥¥Î•?Î∂àÎü¨?§Îäî Ï§?..</div>
+                </div>
+                <div id="philosophy-bottom-nav" style="display: flex; justify-content: space-between; align-items: center; margin-top: 15px;">
+                    <button class="nav-btn" onclick="changeOffset('philosophy', -1)" style="padding: 5px 15px;">&#10094; ?¥Ï†Ñ</button>
+                    <div id="philosophy-chapter-grid" class="phil-chapter-grid" style="flex: 1; margin: 0 15px;">
+                        <!-- Buttons injected via JS -->
+                    </div>
+                    <button class="nav-btn" onclick="changeOffset('philosophy', 1)" style="padding: 5px 15px;">?§Ïùå &#10095;</button>
+                </div>
+                
+                <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid var(--border-color); text-align: center;">
+                    <button id="deleuze-toggle-btn" class="nav-btn" onclick="toggleDeleuzeOverview()" style="padding: 5px 15px; font-size: 0.9rem;">??100Í∞úÎ? ?¥Ìï¥?òÎäî Í∞Ä??Ï§ëÏöî??10?®Í≥Ñ ?ºÏπòÍ∏???/button>
+                </div>
+                
+                <div id="deleuze-overview-content" class="deleuze-overview" style="display: none; margin-top: 15px;">
+                    <div style="margin-bottom: 20px;">
+                        <h4 style="color: var(--text-color); margin-bottom: 10px;">??100Í∞úÎ? ?¥Ìï¥?òÎäî Í∞Ä??Ï§ëÏöî??10?®Í≥Ñ</h4>
+                        <p style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 15px;">100Í∞úÏùò ?©Ïñ¥Î•?Î™®Îëê ?∞Î°ú ?îÍ∏∞?òÍ∏∞Î≥¥Îã§?????êÎ¶Ñ???°Îäî Í≤ÉÏù¥ ?®Ïî¨ Ï§ëÏöî?©Îãà??</p>
+                        <ol style="color: var(--text-color); font-size: 0.95rem; line-height: 1.6; padding-left: 20px;">
+                            <li><strong>Î≥∏Ïßà ??Í¥ÄÍ≥?/strong>: ?úÏù¥Í≤ÉÏ? Î¨¥Ïóá?∏Í???ùÏóê???úÎ¨¥?áÍ≥º ?∞Í≤∞?òÎäîÍ∞Ä??ùÎ°ú.</li>
+                            <li><strong>?ôÏùº????Ï∞®Ïù¥</strong>: Ï∞®Ïù¥Í∞Ä ?ôÏùº??Í≤ÉÎì§ ?¨Ïù¥?êÏÑú ?ùÍ∏∞??Í≤ÉÏù¥ ?ÑÎãà???ôÏùº?±Ïù¥ Ï∞®Ïù¥?êÏÑú ÎßåÎì§?¥ÏßÑ??</li>
+                            <li><strong>Ï°¥Ïû¨ ???ùÏÑ±</strong>: ?ÑÏÑ±???¨Î¨ºÎ≥¥Îã§ ÎßåÎì§?¥Ï???Í≥ºÏ†ï??Î≥∏Îã§.</li>
+                            <li><strong>Ï£ºÏ≤¥ ??Ï£ºÏ≤¥??Í≥ºÏ†ï</strong>: ?òÎÇò?ôÍ? Î®ºÏ? ?àÎäî Í≤ÉÏù¥ ?ÑÎãà??Í¥ÄÍ≥ÑÏ? Í≤ΩÌóò ?çÏóê???òÎÇò?ôÍ? ÎßåÎì§?¥ÏßÑ??</li>
+                            <li><strong>Í≤∞Ìïç ???ïÎßù ?ùÏÇ∞</strong>: ?ïÎßù?Ä ?ÜÎäî Í≤ÉÏùÑ ?êÌïò???òÏù¥ ?ÑÎãà???ÑÏã§??ÎßåÎì§?¥ÎÇ¥???òÏù¥??</li>
+                            <li><strong>?§Ï≤¥ ??Î∞∞Ïπò</strong>: ?¨Îûå?¥ÎÇò ?¨Î¨º??Í≥†Î¶Ω?úÏºú Î≥¥Ï? ?äÍ≥† Ï£ºÎ????¨Î¨º¬∑?∏Ïñ¥¬∑?úÎèÑ?Ä ?®Íªò Î≥∏Îã§.</li>
+                            <li><strong>?òÎ¨¥ ??Î¶¨Ï?</strong>: Ï§ëÏïôÏßëÍ∂å???ÑÍ≥ÑÎ≥¥Îã§ ?°Ï†Å???∞Í≤∞??Î≥∏Îã§.</li>
+                            <li><strong>?ÅÌÜ† ???àÏòÅ?†Ìôî ???¨ÏòÅ?†Ìôî</strong>: ?àÏ†ï??Íµ¨Ï°∞?Ä Î≥Ä?îÍ? Î∞òÎ≥µ?úÎã§.</li>
+                            <li><strong>?ÑÏã§ ???†Ïû¨??+ ?ÑÏã§??/strong>: ?àÏïû???ÑÏã§?îÎêú Í≤ÉÎßå???§Ïû¨???ÑÎ?Í∞Ä ?ÑÎãà??</li>
+                            <li><strong>Ï¥àÏõî ???¥Ïû¨??/strong>: ?∏Í≥Ñ Î∞ñÏùò ?àÎ???Í∏∞Ï?Î≥¥Îã§ ?∏Í≥Ñ ?¥Î???Í¥ÄÍ≥ÑÏ? ?ùÏÑ±?êÏÑú ?§Î™Ö?úÎã§.</li>
+                        </ol>
+                        <p style="color: var(--text-secondary); font-size: 0.9rem; margin-top: 15px; padding: 10px; background: rgba(255,255,255,0.05); border-radius: 4px;">???êÎ¶Ñ??Í∏∞Ïñµ?òÎ©¥ <strong>?òÏ∞®????Î∞òÎ≥µ ???†Ïû¨?????¨Í±¥ ???ïÎßù ??Î∞∞Ïπò ??Î¶¨Ï? ???ùÏÑ± ???àÏòÅ?†Ìôî ???¥Ïû¨?±‚Ä?/strong>???úÎ°ú Î≥ÑÍ∞ú???úÌï¥???©Ïñ¥Í∞Ä ?ÑÎãà???òÎÇò??Ï≤†Ìïô???ÑÎ°ú?ùÌä∏???úÎ°ú ?§Î•∏ ?•Î©¥?§Ïù¥?ºÎäî Í≤ÉÏù¥ Î≥¥Ïù¥Í∏??úÏûë?©Îãà??</p>
+                    </div>
+                    <div>
+                        <h4 style="color: var(--text-color); margin-bottom: 10px;">?µÏã¨ 1Ï∞?Î¨∏Ìóå</h4>
+                        <ul style="color: var(--text-secondary); font-size: 0.85rem; line-height: 1.5; padding-left: 20px; column-count: 2; column-gap: 20px;">
+                            <li>Deleuze, Empiricism and Subjectivity (1953)</li>
+                            <li>Deleuze, Nietzsche and Philosophy (1962)</li>
+                            <li>Deleuze, Proust and Signs (1964)</li>
+                            <li>Deleuze, Bergsonism (1966)</li>
+                            <li>Deleuze, Difference and Repetition (1968)</li>
+                            <li>Deleuze, Expressionism in Philosophy: Spinoza (1968)</li>
+                            <li>Deleuze, The Logic of Sense (1969)</li>
+                            <li>Deleuze & Guattari, Anti-Oedipus (1972)</li>
+                            <li>Deleuze & Guattari, Kafka: Toward a Minor Literature (1975)</li>
+                            <li>Deleuze & Guattari, A Thousand Plateaus (1980)</li>
+                            <li>Deleuze, Francis Bacon: The Logic of Sensation (1981)</li>
+                            <li>Deleuze, Cinema 1: The Movement-Image (1983)</li>
+                            <li>Deleuze, Cinema 2: The Time-Image (1985)</li>
+                            <li>Deleuze, Foucault (1986)</li>
+                            <li>Deleuze, The Fold: Leibniz and the Baroque (1988)</li>
+                            <li>Deleuze & Guattari, What Is Philosophy? (1991)</li>
+                            <li>Deleuze, ?úImmanence: A Life??(1995)</li>
+                        </ul>
+                        <div style="margin-top: 15px; text-align: right; display: flex; flex-direction: column; gap: 8px;">
+                            <a href="https://iep.utm.edu/gilles-deleuze/" target="_blank" style="color: #63b3ed; text-decoration: none; font-size: 0.9rem;">?ìö Internet Encyclopedia of Philosophy</a>
+                            <a href="https://plato.stanford.edu/archives/win2022/entries/deleuze/#toc" target="_blank" style="color: #63b3ed; text-decoration: none; font-size: 0.9rem;">?ìö Stanford Encyclopedia of Philosophy</a>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        
+    </div>
+
+    <!-- Data and Scripts -->
+    <script src="philosophy_data.js?v=20260918_03"></script>
+    <script src="iching_data.js?v=20260917_14"></script>
+    <script src="script.js?v=20260918_02"></script>
+</body>
+</html>
