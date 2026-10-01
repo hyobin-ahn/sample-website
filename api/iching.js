@@ -84,19 +84,19 @@ ${text}
 
       if (attempt === 2) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error?.message || \`Gemini API error: \${response.status}\`);
+        throw new Error(errorData.error?.message || `Gemini API error: ${response.status}`);
       }
       await new Promise(r => setTimeout(r, 1500));
     }
     let responseText = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
     
-    if (responseText.startsWith('\`\`\`json')) {
+    if (responseText.startsWith('```json')) {
       responseText = responseText.substring(7);
     }
-    if (responseText.startsWith('\`\`\`')) {
+    if (responseText.startsWith('```')) {
       responseText = responseText.substring(3);
     }
-    if (responseText.endsWith('\`\`\`')) {
+    if (responseText.endsWith('```')) {
       responseText = responseText.substring(0, responseText.length - 3);
     }
     responseText = responseText.trim();
