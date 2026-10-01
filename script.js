@@ -295,7 +295,7 @@ window.fetchIchingAI = async function(index) {
     }
     
     try {
-        const response = await fetch('/api', {
+        const response = await fetch('/api/iching', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({

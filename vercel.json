@@ -1,4 +1,7 @@
 {
+  "rewrites": [
+    { "source": "/api/iching", "destination": "/api/iching.py" }
+  ],
   "functions": {
     "api/**/*.py": {
       "maxDuration": 60
