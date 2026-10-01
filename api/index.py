@@ -1,7 +1,7 @@
 from http.server import BaseHTTPRequestHandler
 import json
 import os
-from google import genai
+import google.generativeai as genai
 
 class handler(BaseHTTPRequestHandler):
     def do_POST(self):
@@ -28,14 +28,14 @@ class handler(BaseHTTPRequestHandler):
             return
 
         try:
-            client = genai.Client(api_key=api_key)
+            genai.configure(api_key=api_key)
             prompt = f"""당신은 주역(I Ching)에 정통한 동양철학자입니다.
-다음은 주역의 '{hexagram_name}' 괘의 원문(괘사와 효사)입니다.
+다음은 주역의 '{hexagram_name}' 괘의 본문(괘사와 효사)입니다.
 
-[원문]
+[본문]
 {hexagram_text}
 
-이 괘의 괘사(卦辭)와 각 효사(爻辭)별로, 다음 7명의 학자들의 주석을 각각 작성해주세요:
+이 괘의 괘사(단사)와 효사(효사)별로, 다음 7명의 학자들의 주석을 각각 작성해주세요:
 1. 왕필 (Wang Bi)
 2. 공영달 (Kong Yingda)
 3. 소식 (Su Shi)
@@ -59,12 +59,10 @@ class handler(BaseHTTPRequestHandler):
 ]
 결과는 오직 유효한 JSON 배열 형식으로만 반환해야 합니다. 다른 말은 덧붙이지 마세요."""
             
-            interaction = client.interactions.create(
-                model='gemini-3.5-flash-lite',
-                input=prompt,
-            )
+            model = genai.GenerativeModel('gemini-1.5-flash')
+            response = model.generate_content(prompt)
             
-            response_text = interaction.output_text.strip() if interaction.output_text else ""
+            response_text = response.text.strip() if response.text else ""
             if response_text.startswith("```json"):
                 response_text = response_text[7:]
             if response_text.startswith("```"):
