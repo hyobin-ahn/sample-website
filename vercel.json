@@ -9,5 +9,10 @@
       "src": "*",
       "use": "@vercel/static"
     }
-  ]
+  ],
+  "functions": {
+    "api/**/*.py": {
+      "maxDuration": 60
+    }
+  }
 }
