@@ -1,4 +1,4 @@
-export default async function handler(req, res) {
+module.exports = async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method Not Allowed' });
   }
@@ -52,13 +52,12 @@ ${text}
     "shuanghu": "...",
     "yunfeng": "..."
   }
-  // ... 나머지 2효~상효까지 순차적으로 객체 추가 (총 7개의 객체: 괘사 1개 + 효사 6개)
 ]
 결과는 오직 유효한 JSON 배열 형식으로만 반환해야 합니다. 마크다운 블록(\`\`\`json) 없이 순수 JSON 문자열만 반환하거나 마크다운 블록을 사용해도 파싱할 수 있게 해주세요. 다른 말은 덧붙이지 마세요.
 `;
 
   try {
-    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`;
+    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
     
     let response;
     let data;
@@ -85,19 +84,19 @@ ${text}
 
       if (attempt === 2) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error?.message || `Gemini API error: ${response.status}`);
+        throw new Error(errorData.error?.message || \`Gemini API error: \${response.status}\`);
       }
       await new Promise(r => setTimeout(r, 1500));
     }
     let responseText = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
     
-    if (responseText.startsWith('```json')) {
+    if (responseText.startsWith('\`\`\`json')) {
       responseText = responseText.substring(7);
     }
-    if (responseText.startsWith('```')) {
+    if (responseText.startsWith('\`\`\`')) {
       responseText = responseText.substring(3);
     }
-    if (responseText.endsWith('```')) {
+    if (responseText.endsWith('\`\`\`')) {
       responseText = responseText.substring(0, responseText.length - 3);
     }
     responseText = responseText.trim();
