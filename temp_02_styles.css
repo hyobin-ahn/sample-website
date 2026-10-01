@@ -541,7 +541,7 @@ button { font-family: var(--font); }
   -webkit-backdrop-filter: blur(20px);
   border: 1px solid var(--border);
   border-radius: var(--r-lg);
-  padding: 30px;
+  padding: 20px;
   box-shadow: var(--shadow-sm);
 }
 .iching-content { font-size: 0.88rem; line-height: 1.8; }
