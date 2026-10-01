@@ -2,9 +2,5 @@
   "name": "iching-deleuze-app",
   "version": "1.0.0",
   "description": "I Ching and Deleuze philosophy application",
-  "main": "api/iching.js",
-  "scripts": {
-    "start": "node api/iching.js"
-  },
   "dependencies": {}
 }
