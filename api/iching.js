@@ -9,7 +9,7 @@ module.exports = async function handler(req, res) {
     return res.status(400).json({ error: 'Missing name or text parameter in JSON body' });
   }
 
-  const apiKey = process.env.GEMINI_API_KEY;
+  const apiKey = (process.env.GEMINI_API_KEY || '').trim();
   if (!apiKey) {
     return res.status(500).json({ error: 'GEMINI_API_KEY is not set in environment variables' });
   }
@@ -57,7 +57,7 @@ ${text}
 `;
 
   try {
-    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`;
     
     let response;
     let data;
