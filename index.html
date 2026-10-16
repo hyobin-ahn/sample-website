@@ -7,10 +7,7 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
     <title></title>
-    <link rel="stylesheet" href="styles.css?v=20260917_16">
-    <!-- iCal parser -->
-    <script src="ical.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/lunar-javascript/lunar.js"></script>
+    <link rel="stylesheet" href="styles.css?v=20261016_07">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&family=Noto+Sans+KR:wght@300;400;700&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
@@ -57,7 +54,7 @@
                         <button type="submit" class="search-btn" title="Google 검색" style="position: static; transform: none; background: transparent;">
                             <svg focusable="false" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z" fill="currentColor"></path></svg>
                         </button>
-                        <button type="button" class="search-btn gemini-btn" title="Gemini 질문 (클립보드 자동 복사)" onclick="const q = this.form.q.value.trim(); if(q) { navigator.clipboard.writeText(q).then(() => { alert('질문이 복사되었습니다. Gemini 창에서 Ctrl+V로 붙여넣어 주세요.'); window.open('https://gemini.google.com/app', '_blank'); }).catch(() => window.open('https://gemini.google.com/app', '_blank')); } else { window.open('https://gemini.google.com/app', '_blank'); }" style="position: static; transform: none; color: #5c7cfa; background: transparent;">
+                        <button type="button" class="search-btn gemini-btn" title="Gemini 질문 (클립보드 자동 복사)" onclick="searchGemini(this.form)" style="position: static; transform: none; color: #5c7cfa; background: transparent;">
                             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24"><path fill="currentColor" d="M19 2.5L17.5 6L14 7.5L17.5 9L19 12.5L20.5 9L24 7.5L20.5 6L19 2.5ZM10.5 11L7 3.5L3.5 11L-4 14.5L3.5 18L7 25.5L10.5 18L18 14.5L10.5 11ZM7 18.26L8.46 15.11L11.61 13.65L8.46 12.19L7 9.04L5.54 12.19L2.39 13.65L5.54 15.11L7 18.26Z" transform="translate(1, -1) scale(0.9)"/></svg>
                         </button>
                     </div>
@@ -80,7 +77,7 @@
                                 <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
                             </svg>
                         </button>
-                        <button type="button" class="search-btn clova-btn" title="네이버 AI 탭으로 검색" onclick="const q = this.form.query.value.trim(); if(q) { window.open(`https://search.naver.com/search.naver?query=${encodeURIComponent(q)}&ssc=tab.ait.all`, '_blank'); } else { window.open('https://search.naver.com/search.naver?ssc=tab.ait.all', '_blank'); }" style="position: static; transform: none; background: transparent;">
+                        <button type="button" class="search-btn clova-btn" title="네이버 AI 탭으로 검색" onclick="searchNaverAI(this.form)" style="position: static; transform: none; background: transparent;">
                             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="22" height="22">
                                 <defs>
                                     <linearGradient id="ai-grad" x1="2" y1="12" x2="22" y2="12" gradientUnits="userSpaceOnUse">
@@ -273,12 +270,6 @@
                 </div>
             </div>
 
-
-
-        </main>
-
-        <footer class="footer">
-            <div class="footer-grid">
             <section class="philosophy-section">
                 <div class="section-header-flex">
                     <div style="display: flex; align-items: center; gap: 8px;">
@@ -359,36 +350,39 @@
                     </div>
                 </div>
             </section>
-                <div class="iching-container">
-                    <div class="section-header-flex">
-                        <div style="display: flex; align-items: center; gap: 8px;">
-                            <h3 class="section-title" style="margin: 0;">1일 1주역</h3>
-                            <div style="display: flex; gap: 4px;">
-                                <button class="tts-btn tts-speed-btn" onclick="changeTTSSpeed()" title="속도 조절" style="width: auto; padding: 0 6px; font-size: 0.7rem; border-radius: var(--r-sm);">1.00x</button>
-                                <button class="tts-btn" onclick="toggleTTS('iching')" id="tts-btn-iching" title="읽기/정지">🔊</button>
-                                <button class="tts-btn" onclick="pauseTTS()" id="tts-pause-iching" title="일시정지/재개" style="display: none;">⏸️</button>
-                            </div>
-                        </div>
-                        <div class="nav-buttons">
-                            <select id="iching-select" class="nav-select" onchange="jumpToIChing(this.value)">
-                                <!-- Options injected via JS -->
-                            </select>
-                            <button class="nav-btn" onclick="changeOffset('iching', -1)" title="이전">&#10094;</button>
-                            <span id="iching-date" class="nav-date">오늘</span>
-                            <button class="nav-btn" onclick="changeOffset('iching', 1)" title="다음">&#10095;</button>
+        </main>
+
+        <footer class="footer">
+            <div class="iching-container">
+                <div class="section-header-flex">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <h3 class="section-title" style="margin: 0;">1일 1주역</h3>
+                        <div style="display: flex; gap: 4px;">
+                            <button class="tts-btn tts-speed-btn" onclick="changeTTSSpeed()" title="속도 조절" style="width: auto; padding: 0 6px; font-size: 0.7rem; border-radius: var(--r-sm);">1.00x</button>
+                            <button class="tts-btn" onclick="toggleTTS('iching')" id="tts-btn-iching" title="읽기/정지">🔊</button>
+                            <button class="tts-btn" onclick="pauseTTS()" id="tts-pause-iching" title="일시정지/재개" style="display: none;">⏸️</button>
                         </div>
                     </div>
-                    <div id="iching-content" class="iching-content">
-                        <!-- I Ching content injected here -->
+                    <div class="nav-buttons">
+                        <select id="iching-select" class="nav-select" onchange="jumpToIChing(this.value)">
+                            <!-- Options injected via JS -->
+                        </select>
+                        <button class="nav-btn" onclick="changeOffset('iching', -1)" title="이전">&#10094;</button>
+                        <span id="iching-date" class="nav-date">오늘</span>
+                        <button class="nav-btn" onclick="changeOffset('iching', 1)" title="다음">&#10095;</button>
                     </div>
+                </div>
+                <div id="iching-content" class="iching-content">
+                    <!-- I Ching content injected here -->
                 </div>
             </div>
         </footer>
     </div>
 
     <!-- Data and Scripts -->
-    <script src="philosophy_data.js?v=20260918_03"></script>
+    <script src="philosophy_data.js?v=20261016_07"></script>
     <script src="iching_data.js?v=20260917_14"></script>
-    <script src="script.js?v=20260918_02"></script>
+    <script src="iching_commentaries_data.js?v=20261016_01"></script>
+    <script src="script.js?v=20261016_07"></script>
 </body>
 </html>

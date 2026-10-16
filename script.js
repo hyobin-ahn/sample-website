@@ -1,37 +1,40 @@
-// SDU Homepage Main Script
+// SDU Homepage Main Script (02-1 Edition)
 
 let chartInstances = {};
-let offsets = { philosophy: 0, iching: 0, saju: 0 };
+let offsets = { philosophy: 0, iching: 0 };
+
+window.searchGemini = function(form) {
+    if (!form || !form.q) return;
+    const query = form.q.value.trim();
+    if (query) {
+        navigator.clipboard.writeText(query).then(() => {
+            alert('질문이 복사되었습니다. Gemini 창에서 Ctrl+V로 붙여넣어 주세요.');
+            window.open('https://gemini.google.com/app', '_blank');
+        }).catch(() => {
+            window.open('https://gemini.google.com/app', '_blank');
+        });
+    } else {
+        window.open('https://gemini.google.com/app', '_blank');
+    }
+};
+
+window.searchNaverAI = function(form) {
+    if (!form || !form.query) return;
+    const query = form.query.value.trim();
+    if (query) {
+        window.open(`https://search.naver.com/search.naver?query=${encodeURIComponent(query)}&ssc=tab.ait.all`, '_blank');
+    } else {
+        window.open('https://search.naver.com/search.naver?ssc=tab.ait.all', '_blank');
+    }
+};
 
 document.addEventListener('DOMContentLoaded', () => {
     initWeather();
-    initCalendar();
-    
-    // Timeframe buttons
-    const btns = document.querySelectorAll('.timeframe-btn');
-    btns.forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            btns.forEach(b => b.classList.remove('active'));
-            e.target.classList.add('active');
-            const period = e.target.getAttribute('data-period');
-            updateAllCharts(period);
-        });
-    });
-    
-    initKospi('today');
-    initStocks('today');
-    initIChing();
-    
     initPhilosophy();
+    initIChing();
     initShortcuts();
 });
 
-async function updateAllCharts(period) {
-    // We already have the current prices in the DOM, but for simplicity we re-fetch them.
-    // However, it's faster to just redraw the charts. Let's just re-init everything for now.
-    initKospi(period);
-    initStocks(period);
-}
 
 // --- 1. Weather (Open-Meteo API) ---
 const LOCATIONS = {
@@ -228,238 +231,6 @@ function initWeather() {
     updateWeatherWidget();
 }
 
-// --- 2. Calendar (Custom ICS Parser) ---
-// ical.js 대신 직접 파싱하여 텍스트 깨짐이나 형식이 다른 파일을 더 유연하게 처리합니다.
-async function initCalendar() {
-    const eventsListEl = document.getElementById('events-list');
-    if (!eventsListEl) return;
-    
-    let errorHtml = '';
-
-    try {
-        const response = await fetch('/api/calendar');
-        if (!response.ok) {
-            throw new Error(`HTTP fetch 실패 (상태 코드: ${response.status}) - 로컬 서버 환경인지 확인해주세요.`);
-        }
-        
-        // 텍스트 인코딩 문제(한글 깨짐 등)나 ical 포맷 오류를 피하기 위한 커스텀 정규식 기반 파서
-        const icsText = await response.text();
-        
-        const now = new Date();
-        const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-        const todayEnd = new Date(todayStart);
-        todayEnd.setDate(todayEnd.getDate() + 1);
-        
-        const dayOfWeek = now.getDay();
-        const diffToMonday = now.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1);
-        const startOfWeek = new Date(now.getFullYear(), now.getMonth(), diffToMonday);
-        const endOfWeek = new Date(startOfWeek);
-        endOfWeek.setDate(endOfWeek.getDate() + 7);
-        const endOfNextWeek = new Date(endOfWeek);
-        endOfNextWeek.setDate(endOfNextWeek.getDate() + 7);
-
-        let upcomingEvents = [];
-        let displayEvents = [];
-        let isFallback = false;
-
-        try {
-            if (typeof ICAL === 'undefined') throw new Error('ICAL is not loaded');
-            const jcalData = ICAL.parse(icsText);
-            const comp = new ICAL.Component(jcalData);
-            const vevents = comp.getAllSubcomponents('vevent');
-            
-            vevents.forEach(vevent => {
-                const event = new ICAL.Event(vevent);
-                if (event.isRecurring()) {
-                    try {
-                        const iter = event.iterator();
-                        let next;
-                        let i = 0;
-                        while ((next = iter.next()) && i < 1000) {
-                            i++;
-                            const startJS = next.toJSDate();
-                            if (startJS >= endOfNextWeek) break;
-                            
-                            let endJS = null;
-                            if (event.endDate) {
-                                const duration = event.endDate.subtractDateTz(event.startDate);
-                                const nextEnd = next.clone();
-                                nextEnd.addDuration(duration);
-                                endJS = nextEnd.toJSDate();
-                            }
-                            
-                            if (startJS < endOfNextWeek && (endJS === null || endJS >= todayStart)) {
-                                upcomingEvents.push({ summary: event.summary, start: startJS, end: endJS, isAllDay: event.startDate.isDate });
-                            }
-                        }
-                    } catch (err) {
-                        console.warn('반복 일정 처리 오류 (건너뜀):', event.summary, err);
-                    }
-                } else {
-                    const start = event.startDate;
-                    if (start) {
-                        const startJS = start.toJSDate();
-                        let endJS = null;
-                        if (event.endDate) {
-                            endJS = event.endDate.toJSDate();
-                        } else if (event.duration) {
-                            const end = start.clone();
-                            end.addDuration(event.duration);
-                            endJS = end.toJSDate();
-                        }
-                        
-                        if (startJS < endOfNextWeek && (endJS === null || endJS >= todayStart)) {
-                            upcomingEvents.push({ summary: event.summary, start: startJS, end: endJS, isAllDay: start.isDate });
-                        }
-                    }
-                }
-            });
-            
-            upcomingEvents.sort((a, b) => a.start - b.start);
-            displayEvents = upcomingEvents;
-        } catch (icalError) {
-            console.warn('ical.js 파싱 실패, 커스텀 파서로 폴백합니다.', icalError);
-            let errorMessage = icalError.message || String(icalError);
-            
-            // errorHtml = `<div class="calendar-error">⚠️ ical.js 오류: ${errorMessage} (기본 파서로 전환됨)</div>`;
-            errorHtml = ''; // 폴백이 잘 작동하므로 사용자에게는 에러를 숨김
-            
-            // 기존 커스텀 파서 (fallback)
-            const lines = icsText.split(/\r?\n/);
-            const allEvents = [];
-            let currentEvent = null;
-            
-            for (let i = 0; i < lines.length; i++) {
-                const line = lines[i];
-                if (line.startsWith('BEGIN:VEVENT')) {
-                    currentEvent = {};
-                } else if (line.startsWith('END:VEVENT') && currentEvent) {
-                    if (currentEvent.start) allEvents.push(currentEvent);
-                    currentEvent = null;
-                } else if (currentEvent) {
-                    if (line.startsWith('SUMMARY:')) {
-                        currentEvent.summary = line.substring(8).trim();
-                    } else if (line.startsWith('DTSTART')) {
-                        const match = line.match(/:(\d{4})(\d{2})(\d{2})(?:T(\d{2})(\d{2})(\d{2})Z?)?/);
-                        if (match) {
-                            if (match[4]) {
-                                currentEvent.start = new Date(Date.UTC(+match[1], match[2]-1, +match[3], +match[4], +match[5], +match[6]));
-                                currentEvent.isAllDay = false;
-                            } else {
-                                currentEvent.start = new Date(+match[1], match[2]-1, +match[3]);
-                                currentEvent.isAllDay = true;
-                            }
-                        }
-                    } else if (line.startsWith('DTEND')) {
-                        const match = line.match(/:(\d{4})(\d{2})(\d{2})(?:T(\d{2})(\d{2})(\d{2})Z?)?/);
-                        if (match) {
-                            if (match[4]) {
-                                currentEvent.end = new Date(Date.UTC(+match[1], match[2]-1, +match[3], +match[4], +match[5], +match[6]));
-                            } else {
-                                currentEvent.end = new Date(+match[1], match[2]-1, +match[3]);
-                            }
-                        }
-                    }
-                }
-            }
-            
-            upcomingEvents = allEvents.filter(e => {
-                if (!e.start || e.start >= endOfNextWeek) return false;
-                const end = e.end || e.start;
-                return end >= todayStart;
-            });
-            displayEvents = upcomingEvents;
-            displayEvents.sort((a, b) => a.start - b.start);
-        }
-        
-        const days = ['일', '월', '화', '수', '목', '금', '토'];
-        const dateString = `${now.getFullYear()}년 ${now.getMonth() + 1}월 ${now.getDate()}일 (${days[now.getDay()]})`;
-
-        eventsListEl.innerHTML = errorHtml + `<div class="calendar-date">🗓️ ${dateString}</div>`;
-        
-        if (displayEvents.length === 0) {
-            eventsListEl.innerHTML += '<p class="no-events">예정된 일정이 없습니다.</p>';
-            return;
-        }
-
-        const todayEvents = [];
-        const futureEvents = [];
-        displayEvents.forEach(evt => {
-            if (evt.start >= todayEnd) futureEvents.push(evt);
-            else todayEvents.push(evt);
-        });
-
-        if (todayEvents.length === 0) {
-            eventsListEl.innerHTML += '<p class="no-events">오늘 일정이 없습니다.</p>';
-        }
-
-        const createCard = (evt, isFuture) => {
-            const card = document.createElement('div');
-            card.className = isFuture ? 'future-event-card' : 'event-card';
-            const title = document.createElement('div');
-            title.className = 'event-title';
-            title.textContent = evt.summary || '(제목 없음)';
-            const time = document.createElement('div');
-            time.className = 'event-time';
-            const formatTime = (d) => d.toLocaleDateString('ko-KR', { month: 'short', day: 'numeric', weekday: 'short' }) + ' ' + d.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' });
-            if (evt.isAllDay) time.textContent = evt.start.toLocaleDateString('ko-KR', { month: 'short', day: 'numeric', weekday: 'short' }) + ' (종일)';
-            else time.textContent = `${formatTime(evt.start)} - ${evt.end ? formatTime(evt.end) : ''}`;
-            card.appendChild(title);
-            card.appendChild(time);
-            return card;
-        };
-
-        todayEvents.forEach(evt => {
-            eventsListEl.appendChild(createCard(evt, false));
-        });
-
-        if (futureEvents.length > 0) {
-            const wrap = document.createElement('div');
-            wrap.style.marginTop = '20px';
-            wrap.innerHTML = `
-                <div class="calendar-section-title">
-                    <div >다가오는 일정 (${futureEvents.length}개)</div>
-                    <button onclick="window.toggleFutureEvents()" id="future-events-btn" class="nav-btn toggle-btn" title="접기/펼치기"><svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" class="chevron-icon"><polyline points="6 9 12 15 18 9"></polyline></svg></button>
-                </div>
-                <div id="future-events-container" class="calendar-events-container" style="display: none;"></div>
-            `;
-            eventsListEl.appendChild(wrap);
-            const futureContainer = eventsListEl.querySelector('#future-events-container');
-            futureEvents.forEach(evt => {
-                futureContainer.appendChild(createCard(evt, true));
-            });
-        }
-        
-    } catch (error) {
-        console.error('Calendar parse error:', error);
-        eventsListEl.innerHTML = `<p class="calendar-error">⚠️ 일정 불러오기 실패: ${error.message}</p>`;
-    }
-}
-
-window.toggleStocks = function() {
-    const grid = document.getElementById('stocks-grid');
-    const btn = document.getElementById('stocks-toggle-btn');
-    if (!grid || !btn) return;
-    if (grid.style.display === 'none') {
-        grid.style.display = 'grid';
-        btn.classList.add('open');
-    } else {
-        grid.style.display = 'none';
-        btn.classList.remove('open');
-    }
-};
-
-window.toggleFutureEvents = function() {
-    const container = document.getElementById('future-events-container');
-    const btn = document.getElementById('future-events-btn');
-    if (container.style.display === 'none') {
-        container.style.display = 'flex';
-        btn.classList.add('open');
-    } else {
-        container.style.display = 'none';
-        btn.classList.remove('open');
-    }
-};
 
 // --- 3. Daily I Ching ---
 function initIChing(offset = 0) {
@@ -513,7 +284,7 @@ function initIChing(offset = 0) {
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
                     <p class="iching-box-title" style="margin: 0;"><strong>卦辭 (괘사)</strong></p>
                     <div style="display: flex; gap: 5px; align-items: center;" class="tts-ignore">
-                        <button onclick="fetchIchingSectionAI(${index}, -1, this)" class="nav-btn" style="background: var(--primary); padding: 4px 10px; border-radius: 4px; font-size: 0.8em; margin-right: 10px;">✨ AI 해설 열기</button>
+                        <button onclick="fetchIchingSectionAI(${index}, -1, this)" class="nav-btn" style="background: var(--primary); padding: 4px 10px; border-radius: 4px; font-size: 0.8em; margin-right: 10px;">✨ 정본 해설 열기</button>
                         <button class="tts-speed-btn" onclick="toggleTTSSpeed()" title="속도 조절 (현재 1.0x)" style="font-size: 0.8em; padding: 3px 8px; border-radius: 4px; background: transparent; color: var(--text-primary); border: 1px solid var(--border);">1.0x</button>
                         <button class="tts-btn" onclick="toggleTTS('iching-base-gwaesa')" id="tts-btn-iching-base-gwaesa" title="읽기/정지" style="font-size: 0.8em; padding: 3px 8px; border-radius: 4px; background: transparent; color: var(--text-primary); border: 1px solid var(--border);">🔊</button>
                     </div>
@@ -530,7 +301,7 @@ function initIChing(offset = 0) {
                         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
                             <span class="iching-line-name" style="font-weight: bold; color: var(--primary);">[${l.name}]</span>
                             <div style="display: flex; gap: 5px; align-items: center;" class="tts-ignore">
-                                <button onclick="fetchIchingSectionAI(${index}, ${idx}, this)" class="nav-btn" style="background: var(--primary); padding: 4px 10px; border-radius: 4px; font-size: 0.8em; margin-right: 10px;">✨ AI 해설 열기</button>
+                                <button onclick="fetchIchingSectionAI(${index}, ${idx}, this)" class="nav-btn" style="background: var(--primary); padding: 4px 10px; border-radius: 4px; font-size: 0.8em; margin-right: 10px;">✨ 정본 해설 열기</button>
                                 <button class="tts-speed-btn" onclick="toggleTTSSpeed()" title="속도 조절 (현재 1.0x)" style="font-size: 0.8em; padding: 3px 8px; border-radius: 4px; background: transparent; color: var(--text-primary); border: 1px solid var(--border);">1.0x</button>
                                 <button class="tts-btn" onclick="toggleTTS('${ttsId}')" id="tts-btn-${ttsId}" title="읽기/정지" style="font-size: 0.8em; padding: 3px 8px; border-radius: 4px; background: transparent; color: var(--text-primary); border: 1px solid var(--border);">🔊</button>
                             </div>
@@ -570,21 +341,154 @@ window.fetchIchingSectionAI = async function(index, lineIndex, btnEl) {
     if (resultContainer.dataset.loaded === "true") {
         const isHidden = resultContainer.style.display === 'none';
         resultContainer.style.display = isHidden ? 'block' : 'none';
-        btnEl.textContent = isHidden ? '✨ AI 해설 닫기' : '✨ AI 해설 열기';
+        btnEl.textContent = isHidden ? '✨ 정본 해설 닫기' : '✨ 정본 해설 열기';
+        return;
+    }
+
+    const renderScholar = (key, label, data) => {
+        const hasData = data && typeof data === 'object';
+        const original = (hasData && data.original) ? data.original.trim() : (typeof data === 'string' ? data.trim() : '');
+        const translation = (hasData && data.translation) ? data.translation.trim() : '';
+        const bookBadge = (hasData && data.book) ? `<span style="font-size:0.8em; color:var(--primary); font-weight:600; padding:2px 7px; background:rgba(56,189,248,0.12); border-radius:4px; border:1px solid rgba(56,189,248,0.25);">『${data.book}』</span>` : '';
+
+        const scholarId = `scholar-${index}-${lineIndex}-${key}`;
+
+        // 원문이 없거나 '원문 미상' 등인 경우: 임의 해설을 일절 표시하지 않고 깔끔하게 비워둠
+        const isOriginalEmpty = !original || original === '""' || original.includes('원문 미상') || original.includes('미상');
+
+        if (isOriginalEmpty) {
+            return `
+                <div class="saju-box" style="margin-bottom: 12px; opacity: 0.55;">
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <p class="saju-box-title" style="margin:0; font-weight:700;">${label}</p>
+                        ${bookBadge}
+                    </div>
+                    <p style="color:var(--text-muted); font-size:0.85em; margin: 4px 0 0;">(원문 없음)</p>
+                </div>`;
+        }
+
+        return `
+            <div class="saju-box" id="${scholarId}" style="margin-bottom: 12px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                    <p class="saju-box-title" style="margin:0; font-weight:700;">${label}</p>
+                    <div style="display:flex; align-items:center; gap:6px;">
+                        ${bookBadge}
+                        <button class="tts-btn" onclick="toggleTTS('${scholarId}')" id="tts-btn-${scholarId}" title="${label} 주석 읽기/정지">🔊</button>
+                    </div>
+                </div>
+                <div style="background: rgba(0,0,0,0.18); padding: 10px 12px; border-radius: 6px; margin-bottom: 8px; border-left: 3px solid var(--primary);">
+                    <div class="tts-ignore" style="font-size: 0.72em; color: var(--text-muted); margin-bottom: 4px; font-weight: 600;">[한문 정본 原文]</div>
+                    <p style="font-family: 'Noto Serif KR', 'Batang', serif; color: var(--text-primary); font-size: 0.95em; line-height: 1.65; letter-spacing: 0.03em; margin: 0;">${original}</p>
+                </div>
+                ${translation ? `
+                <div style="padding-top: 4px;">
+                    <div class="tts-ignore" style="font-size: 0.72em; color: var(--text-muted); margin-bottom: 3px; font-weight: 600;">[정통 번역]</div>
+                    <p style="line-height: 1.65; color: var(--text-secondary); margin: 0; font-size: 0.92em;">${translation}</p>
+                </div>` : ''}
+            </div>`;
+    };
+
+    const renderKoreanScholars = (scholars) => {
+        if (!scholars || !scholars.length) return '';
+        const allKoreanId = `korean-all-${index}-${lineIndex}`;
+        const listHtml = scholars.map((s, idx) => {
+            const kScholarId = `korean-scholar-${index}-${lineIndex}-${idx}`;
+            return `
+                <div id="${kScholarId}" style="margin-bottom: 10px; padding: 10px 12px; background: rgba(0,0,0,0.16); border-radius: 6px; border-left: 3px solid #c084fc;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 4px; gap: 8px;">
+                        <div style="font-size: 0.85em; font-weight: 700; color: #d8b4fe; flex: 1; min-width: 0;">${s.scholar}</div>
+                        <button class="tts-btn" onclick="toggleTTS('${kScholarId}')" id="tts-btn-${kScholarId}" title="${s.scholar} 주석 읽기/정지" style="color:#d8b4fe; border-color:rgba(168,85,247,0.35);">🔊</button>
+                    </div>
+                    <div style="font-family: 'Noto Serif KR', 'Batang', serif; color: var(--text-primary); font-size: 0.92em; line-height: 1.6; margin-bottom: 4px;">${s.original}</div>
+                    <div style="color: var(--text-secondary); font-size: 0.88em; line-height: 1.55;">${s.translation}</div>
+                </div>
+            `;
+        }).join('');
+
+        return `
+            <details style="margin-top: 14px; background: rgba(168,85,247,0.06); border: 1px solid rgba(168,85,247,0.25); border-radius: 6px; padding: 10px 12px;">
+                <summary style="cursor: pointer; font-weight: 600; color: #c084fc; font-size: 0.88em; user-select: none; padding: 3px 0;">
+                    <span>🇰🇷 한국 대표 역학자(조선 성리학자) 정본 주석 보기 (${scholars.length}인 수록)</span>
+                </summary>
+                <div style="margin-top: 10px; padding-top: 8px; border-top: 1px dashed rgba(168,85,247,0.25);">
+                    <div class="korean-scholars-toolbar">
+                        <span style="font-size: 0.78rem; color: #d8b4fe; font-weight: 500;">조선 성리학 8대 학자 주석</span>
+                        <button class="tts-full-btn purple" onclick="toggleTTS('${allKoreanId}')" id="tts-btn-${allKoreanId}" title="한국 학자 주석 전체 낭독">
+                            <span>🔊 한국학자 주석 낭독</span>
+                        </button>
+                    </div>
+                    <div id="${allKoreanId}">
+                        ${listHtml}
+                    </div>
+                </div>
+            </details>
+        `;
+    };
+
+    const renderScholars = (item) => {
+        if (!item) return '';
+        const allScholarsId = `all-scholars-${index}-${lineIndex}`;
+        return `
+            <div style="background: var(--bg-2); padding: 16px; border-radius: 8px; border: 1px solid var(--border);">
+                <div class="commentary-header">
+                    <div class="commentary-title-row">
+                        <div class="commentary-title-group">
+                            <h5 class="commentary-title">[${item.title}] 7대 학자 정본 주석</h5>
+                            <p class="commentary-subtitle">한국학중앙연구원 『한국주역대전』 DB 및 ctext.org 정본 판본 기준</p>
+                        </div>
+                        <span class="db-badge">✓ 공인 정본 DB</span>
+                    </div>
+                    <div class="commentary-toolbar">
+                        <div class="commentary-toolbar-info">
+                            <span class="scholar-count-badge">📚 송·명·청 7대 역학자 전권 수록</span>
+                        </div>
+                        <div class="commentary-toolbar-actions">
+                            <button class="tts-btn tts-speed-btn" onclick="changeTTSSpeed()" title="낭독 속도 조절">${window.ttsRate ? window.ttsRate.toFixed(2) : '1.00'}x</button>
+                            <button class="tts-full-btn" onclick="toggleTTS('${allScholarsId}')" id="tts-btn-${allScholarsId}" title="7대 학자 주석 전체 연속 낭독">
+                                <span>🔊 전체 주석 낭독</span>
+                            </button>
+                            <button class="tts-btn" onclick="pauseTTS()" id="tts-pause-${allScholarsId}" title="일시정지/재개" style="display: none;">⏸️</button>
+                        </div>
+                    </div>
+                </div>
+                <div id="${allScholarsId}">
+                    ${renderScholar('wangbi', '왕필 (王弼)', item.wangbi)}
+                    ${renderScholar('kongyingda', '공영달 (孔穎達)', item.kongyingda)}
+                    ${renderScholar('sushi', '소식 (蘇軾)', item.sushi)}
+                    ${renderScholar('chengyi', '정이 (程頤)', item.chengyi)}
+                    ${renderScholar('zhuxi', '주희 (朱熹)', item.zhuxi)}
+                    ${renderScholar('shuanghu', '쌍호호씨 (胡炳文)', item.shuanghu)}
+                    ${renderScholar('yunfeng', '운봉호씨 (胡一桂)', item.yunfeng)}
+                    ${renderKoreanScholars(item.korean_scholars)}
+                </div>
+            </div>
+        `;
+    };
+
+    // 1순위: 사전 추출된 64괘 7대 정본 주석 DB에서 즉시 로드 (0ms 즉시 표시, 100% 정본)
+    const cachedItem = window.ichingCommentariesData?.[String(hexagram.id)]?.[String(lineIndex)];
+    if (cachedItem) {
+        resultContainer.innerHTML = renderScholars(cachedItem);
+        resultContainer.style.display = 'block';
+        resultContainer.dataset.loaded = "true";
+        btnEl.textContent = '✨ 정본 해설 닫기';
+        btnEl.disabled = false;
         return;
     }
     
+    // 2순위: 캐시가 없는 경우 백엔드 API 호출 (Fallback)
     btnEl.disabled = true;
-    const originalText = btnEl.textContent;
-    btnEl.textContent = '불러오는 중... (약 2~3초)';
+    btnEl.textContent = '불러오는 중... (약 1~2초)';
     
     try {
         const response = await fetch('/api/iching', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
+                id: hexagram.id,
                 name: hexagram.name_korean + '(' + hexagram.name_chinese + ')',
-                title: title,
+                nameChinese: hexagram.name_chinese,
+                title: lineIndex === -1 ? '卦辭(괘사)' : line.name,
                 text: text
             })
         });
@@ -596,329 +500,27 @@ window.fetchIchingSectionAI = async function(index, lineIndex, btnEl) {
         const jsonResponse = await response.json();
         const item = Array.isArray(jsonResponse) ? jsonResponse[0] : jsonResponse;
         
-        const renderScholars = (item) => {
-            if (!item) return '';
-            return `
-                <div style="background: var(--bg-2); padding: 15px; border-radius: 8px; border: 1px solid var(--border);">
-                    <div style="border-bottom: 2px solid var(--primary); padding-bottom: 5px; margin-bottom: 10px;">
-                        <h5 style="margin: 0; color: var(--text-primary);">[${item.title}] 주석</h5>
-                    </div>
-                    <div class="saju-box"><p class="saju-box-title">왕필</p><p>${item.wangbi || '해설 없음'}</p></div>
-                    <div class="saju-box"><p class="saju-box-title">공영달</p><p>${item.kongyingda || '해설 없음'}</p></div>
-                    <div class="saju-box"><p class="saju-box-title">소식</p><p>${item.sushi || '해설 없음'}</p></div>
-                    <div class="saju-box"><p class="saju-box-title">정이</p><p>${item.chengyi || '해설 없음'}</p></div>
-                    <div class="saju-box"><p class="saju-box-title">주희</p><p>${item.zhuxi || '해설 없음'}</p></div>
-                    <div class="saju-box"><p class="saju-box-title">쌍호호씨</p><p>${item.shuanghu || '해설 없음'}</p></div>
-                    <div class="saju-box"><p class="saju-box-title">운봉호씨</p><p>${item.yunfeng || '해설 없음'}</p></div>
-                </div>
-            `;
-        };
-        
         resultContainer.innerHTML = renderScholars(item);
         resultContainer.style.display = 'block';
         resultContainer.dataset.loaded = "true";
-        btnEl.textContent = '✨ AI 해설 닫기';
+        btnEl.textContent = '✨ 정본 해설 닫기';
         btnEl.disabled = false;
         
     } catch (e) {
         console.error(e);
         btnEl.disabled = false;
         btnEl.textContent = '해설 실패 (재시도)';
-        alert(e.message || 'AI 해설을 불러오는 중 오류가 발생했습니다.');
-    }
-}
-
-// --- 4. Today's Saju (Fortune) ---
-function getFiveElements(year, month, day, hour, calendarType = 'solar') {
-    if (typeof Lunar === 'undefined') {
-        return { layoutHtml: '<div style="color:red; text-align:center;">로딩 중입니다... 잠시 후 다시 시도해주세요.</div>', counts: {'목':0,'화':0,'토':0,'금':0,'수':0} };
-    }
-    const stemElements = {
-        '甲': '목(나무)', '乙': '목(나무)',
-        '丙': '화(불)', '丁': '화(불)',
-        '戊': '토(흙)', '己': '토(흙)',
-        '庚': '금(쇠)', '辛': '금(쇠)',
-        '壬': '수(물)', '癸': '수(물)'
-    };
-    
-    const branchElements = {
-        '子': '수(물)', '丑': '토(흙)', '寅': '목(나무)', '卯': '목(나무)',
-        '辰': '토(흙)', '巳': '화(불)', '午': '화(불)', '未': '토(흙)',
-        '申': '금(쇠)', '酉': '금(쇠)', '戌': '토(흙)', '亥': '수(물)'
-    };
-
-    let solarDate;
-    try {
-        if (calendarType === 'lunar') {
-            solarDate = Lunar.fromYmdHms(year, month, day, hour, 0, 0).getSolar();
-        } else {
-            solarDate = Solar.fromYmdHms(year, month, day, hour, 0, 0);
+        let errMsg = e.message || '정본 해설을 불러오는 중 오류가 발생했습니다.';
+        if (errMsg.includes('high demand') || errMsg.includes('503')) {
+            errMsg = '⚠️ 서버가 혼잡합니다. 잠시 후 재시도해주세요.';
+        } else if (errMsg.includes('not found') || errMsg.includes('404')) {
+            errMsg = '⚠️ 해설 데이터를 찾을 수 없습니다. 잠시 후 재시도해주세요.';
         }
-    } catch (e) {
-        console.error(e);
-        solarDate = Solar.fromYmdHms(year, month, day, hour, 0, 0);
+        resultContainer.innerHTML = `<div style="color: var(--text-secondary); font-size: 0.85em; padding: 10px; text-align:center;">${errMsg}</div>`;
+        resultContainer.style.display = 'block';
     }
-    
-    const lunarDate = solarDate.getLunar();
-    const bazi = lunarDate.getEightChar();
-    
-    const yStem = bazi.getYearGan() || '甲';
-    const yBranch = bazi.getYearZhi() || '子';
-    const mStem = bazi.getMonthGan() || '甲';
-    const mBranch = bazi.getMonthZhi() || '子';
-    const dStem = bazi.getDayGan() || '甲';
-    const dBranch = bazi.getDayZhi() || '子';
-    const hStem = bazi.getTimeGan() || '甲';
-    const hBranch = bazi.getTimeZhi() || '子';
-    
-    let counts = { '목': 0, '화': 0, '토': 0, '금': 0, '수': 0 };
-    [yStem, mStem, dStem, hStem].forEach(s => {
-        const el = stemElements[s].substring(0, 1);
-        counts[el] = (counts[el] || 0) + 1;
-    });
-    [yBranch, mBranch, dBranch, hBranch].forEach(b => {
-        const el = branchElements[b].substring(0, 1);
-        counts[el] = (counts[el] || 0) + 1;
-    });
-    
-    const layoutHtml = `
-        <div class="saju-grid">
-            <div class="saju-pillar">
-                <div class="saju-pillar-title">년(年)</div>
-                <div class="saju-pillar-chars">${yStem}<br>${yBranch}</div>
-                <div class="saju-pillar-elements">${stemElements[yStem]}<br>${branchElements[yBranch]}</div>
-            </div>
-            <div class="saju-pillar">
-                <div class="saju-pillar-title">월(月)</div>
-                <div class="saju-pillar-chars">${mStem}<br>${mBranch}</div>
-                <div class="saju-pillar-elements">${stemElements[mStem]}<br>${branchElements[mBranch]}</div>
-            </div>
-            <div class="saju-pillar day-pillar">
-                <div class="saju-pillar-title">일(日)</div>
-                <div class="saju-pillar-chars">${dStem}<br>${dBranch}</div>
-                <div class="saju-pillar-elements">${stemElements[dStem]}<br>${branchElements[dBranch]}</div>
-            </div>
-            <div class="saju-pillar">
-                <div class="saju-pillar-title">시(時)</div>
-                <div class="saju-pillar-chars">${hStem}<br>${hBranch}</div>
-                <div class="saju-pillar-elements">${stemElements[hStem]}<br>${branchElements[hBranch]}</div>
-            </div>
-        </div>
-    `;
+};
 
-    return {
-        layoutHtml: layoutHtml,
-        counts: counts,
-        baziString: `${yStem}${yBranch}년 ${mStem}${mBranch}월 ${dStem}${dBranch}일 ${hStem}${hBranch}시`
-    };
-}
-
-function initSaju(offset = 0) {
-    // 확인 버튼이나 이전/다음으로 호출될 때는 항상 내용을 표시
-    window.isSajuBaseInfoVisible = true;
-    const toggleBtn = document.getElementById('saju-toggle-btn');
-    if (toggleBtn) toggleBtn.classList.add('open');
-    calculateSaju(offset);
-}
-
-async function calculateSaju(passedOffset) {
-    if (window.isSajuBaseInfoVisible === undefined) {
-        window.isSajuBaseInfoVisible = false;
-    }
-    
-    if (passedOffset === undefined) {
-        window.isSajuBaseInfoVisible = !window.isSajuBaseInfoVisible;
-        const toggleBtn = document.getElementById('saju-toggle-btn');
-        if (toggleBtn) {
-            if (window.isSajuBaseInfoVisible) toggleBtn.classList.add('open');
-            else toggleBtn.classList.remove('open');
-        }
-        const baseInfo = document.getElementById('saju-base-info');
-        if (baseInfo) {
-            baseInfo.style.display = window.isSajuBaseInfoVisible ? 'block' : 'none';
-        }
-        return;
-    }
-
-    let offset = offsets.saju;
-    if (typeof passedOffset === 'number') {
-        offset = passedOffset;
-    }
-    
-    const container = document.getElementById('saju-content');
-    const now = new Date();
-    now.setDate(now.getDate() + offset);
-    
-    // Update date UI
-    const dateEl = document.getElementById('saju-date');
-    if (dateEl) {
-        dateEl.textContent = offset === 0 ? '오늘' : (offset > 0 ? `+${offset}일` : `${offset}일`);
-    }
-    // Get user input
-    const year = parseInt(document.getElementById('saju-year')?.value || 1970);
-    const month = parseInt(document.getElementById('saju-month')?.value || 1);
-    const day = parseInt(document.getElementById('saju-day')?.value || 30);
-    const hour = parseInt(document.getElementById('saju-hour')?.value || 6);
-    const calendarType = document.getElementById('saju-calendar')?.value || 'solar';
-    const gender = document.getElementById('saju-gender')?.value || 'M';
-    
-    const sajuData = getFiveElements(year, month, day, hour, calendarType);
-    const todaySaju = getFiveElements(now.getFullYear(), now.getMonth()+1, now.getDate(), 12, 'solar');
-    
-    const yearStr = now.getFullYear();
-    const monthStr = String(now.getMonth() + 1).padStart(2, '0');
-    const dayStr = String(now.getDate()).padStart(2, '0');
-    const dateFormatted = `${yearStr}년 ${monthStr}월 ${dayStr}일`;
-    const offsetStr = offset === 0 ? '(오늘)' : (offset > 0 ? '(+' + offset + '일)' : '(' + offset + '일)');
-
-    let baseHtml = `
-        <div id="saju-base-info" class="saju-section-box" style="display: ${window.isSajuBaseInfoVisible ? 'block' : 'none'};">
-            <h4 class="saju-section-title">사주 오행 분포</h4>
-            <div class="text-md text-bold" style="text-align: center; margin-bottom: 15px;">
-                <strong>${year}년 ${month}월 ${day}일 ${hour}시 (${calendarType==='lunar'?'음':'양'}) (${gender === 'M' ? '남' : '여'})</strong>
-            </div>
-            ${sajuData.layoutHtml}
-            <div class="saju-element-counts">
-                <div class="saju-element-wood">목: ${sajuData.counts['목']}</div>
-                <div class="saju-element-fire">화: ${sajuData.counts['화']}</div>
-                <div class="saju-element-earth">토: ${sajuData.counts['토']}</div>
-                <div class="saju-element-metal">금: ${sajuData.counts['금']}</div>
-                <div class="saju-element-water">수: ${sajuData.counts['수']}</div>
-            </div>
-            
-            <div style="padding-top: 15px; border-top: 1px solid rgba(255,255,255,0.1);">
-                <div class="calendar-section-title">
-                    <h5 class="saju-section-title text-sm">🤖 오행 정밀 분석</h5>
-                    <div style="display: flex; gap: 4px;">
-                        <button class="tts-btn tts-speed-btn" onclick="changeTTSSpeed()" title="속도 조절" style="width: auto; padding: 0 6px; font-size: 0.7rem; border-radius: var(--r-sm);">${window.ttsRate ? window.ttsRate.toFixed(2) : '1.00'}x</button>
-                        <button class="tts-btn" onclick="toggleTTS('saju_analysis')" id="tts-btn-saju_analysis" title="읽기/정지">🔊</button>
-                        <button class="tts-btn" onclick="pauseTTS()" id="tts-pause-saju_analysis" title="일시정지/재개" style="display: none;">⏸️</button>
-                    </div>
-                </div>
-                <div id="saju_analysis_text">
-                    <div style="text-align: center; padding: 15px; color: var(--text-secondary); font-size: 0.9rem;">AI가 오행을 분석 중입니다...</div>
-                </div>
-            </div>
-        </div>
-        
-        <div style="display: flex; justify-content: center; align-items: center; gap: 10px; margin-bottom: 20px; padding: 10px; border-top: 1px solid rgba(255,255,255,0.1); border-bottom: 1px solid rgba(255,255,255,0.1);">
-            <button class="nav-btn" onclick="changeOffset('saju', -1)" title="이전">&#10094;</button>
-            <span class="nav-date" style="font-weight: bold; min-width: 150px; text-align: center;">${dateFormatted} ${offsetStr}</span>
-            <button class="nav-btn" onclick="changeOffset('saju', 1)" title="다음">&#10095;</button>
-        </div>
-        
-        <div class="saju-section-box" style="margin-bottom: 10px;">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                <h4 class="text-md text-bold text-accent" style="margin: 0;">오늘의 일진 오행</h4>
-                <div style="display: flex; align-items: center; gap: 5px;">
-                    <span style="font-size: 0.9rem; color: var(--text-secondary);">시간: </span>
-                    <input type="number" id="today-saju-hour" value="${now.getHours()}" min="0" max="23" class="saju-input" onchange="updateTodaySaju(${offset})">
-                </div>
-            </div>
-            <div id="today-saju-container">
-                ${todaySaju.layoutHtml}
-                <div class="saju-element-counts">
-                    <div class="saju-element-wood">목: ${todaySaju.counts['목']}</div>
-                    <div class="saju-element-fire">화: ${todaySaju.counts['화']}</div>
-                    <div class="saju-element-earth">토: ${todaySaju.counts['토']}</div>
-                    <div class="saju-element-metal">금: ${todaySaju.counts['금']}</div>
-                    <div class="saju-element-water">수: ${todaySaju.counts['수']}</div>
-                </div>
-            </div>
-        </div>
-
-        <div style="padding: 10px 0; margin-bottom: 10px;" id="saju-fortune-container">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                <h4 class="text-md text-bold" style="margin: 0;"><span class="tts-ignore">☯️</span> 사주와 오늘의 기운 교류</h4>
-                <div style="display: flex; gap: 4px;">
-                    <button class="tts-btn tts-speed-btn" onclick="changeTTSSpeed()" title="속도 조절" style="width: auto; padding: 0 6px; font-size: 0.7rem; border-radius: var(--r-sm);">${window.ttsRate ? window.ttsRate.toFixed(2) : '1.00'}x</button>
-                    <button class="tts-btn" onclick="toggleTTS('saju_fortune')" id="tts-btn-saju_fortune" title="읽기/정지">🔊</button>
-                    <button class="tts-btn" onclick="pauseTTS()" id="tts-pause-saju_fortune" title="일시정지/재개" style="display: none;">⏸️</button>
-                </div>
-            </div>
-            <div id="saju_fortune_text">
-                <div style="text-align: center; padding: 20px; color: var(--text-secondary);">AI가 오늘의 운세를 분석 중입니다... 잠시만 기다려주세요.</div>
-            </div>
-        </div>
-    `;
-    
-    container.innerHTML = baseHtml;
-
-    try {
-        const ohangParam = `목:${sajuData.counts['목']},화:${sajuData.counts['화']},토:${sajuData.counts['토']},금:${sajuData.counts['금']},수:${sajuData.counts['수']}`;
-        const todayOhangParam = `목:${todaySaju.counts['목']},화:${todaySaju.counts['화']},토:${todaySaju.counts['토']},금:${todaySaju.counts['금']},수:${todaySaju.counts['수']}`;
-        const queryParams = new URLSearchParams({
-            bazi: sajuData.baziString,
-            ohang: ohangParam,
-            todayBazi: todaySaju.baziString || '',
-            todayOhang: todayOhangParam
-        });
-        const response = await fetch(`/api/saju?${queryParams.toString()}`);
-        if (!response.ok) {
-            const errJson = await response.json().catch(() => ({}));
-            throw new Error(errJson.error || '운세 데이터를 가져오는데 실패했습니다.');
-        }
-        const data = await response.json();
-        
-        const fortuneHtml = `
-            <h5 class="text-md text-bold text-accent" style="margin: 0 0 5px 0;"><span class="tts-ignore">🌟</span> 총운</h5>
-            <p class="text-body" style="margin-bottom: 15px;">${data.total || '정보 없음'}</p>
-            
-            <h5 class="text-md text-bold saju-element-earth" style="margin: 0 0 5px 0;"><span class="tts-ignore">💰</span> 재물운</h5>
-            <p class="text-body" style="margin-bottom: 15px;">${data.wealth || '정보 없음'}</p>
-
-            <h5 class="text-md text-bold saju-element-fire" style="margin: 0 0 5px 0;"><span class="tts-ignore">💕</span> 애정운</h5>
-            <p class="text-body" style="margin-bottom: 15px;">${data.love || '정보 없음'}</p>
-            
-            <h5 class="text-md text-bold saju-element-water" style="margin: 0 0 5px 0;"><span class="tts-ignore">💼</span> 직장/학업운</h5>
-            <p class="text-body" style="margin-bottom: 15px;">${data.career || '정보 없음'}</p>
-
-            <h5 class="text-md text-bold saju-element-wood" style="margin: 0 0 5px 0;"><span class="tts-ignore">🌿</span> 건강운</h5>
-            <p class="text-body" style="margin-bottom: 0;">${data.health || '정보 없음'}</p>
-        `;
-        document.getElementById('saju_fortune_text').innerHTML = fortuneHtml;
-
-        // Update ohang analysis with AI data
-        const analysisEl = document.getElementById('saju_analysis_text');
-        if (analysisEl && (data.ohang_strength || data.ohang_advice)) {
-            analysisEl.innerHTML = `
-                <strong>[강점 요약]</strong><br>
-                <span>${data.ohang_strength || ''}</span>
-                <br><br>
-                <strong>[보완점 및 조언]</strong><br>
-                <span>${data.ohang_advice || ''}</span>
-            `;
-        }
-    } catch (e) {
-        console.error("Saju fetch error:", e);
-        document.getElementById('saju_fortune_text').innerHTML = `
-            <div style="color: var(--saju-fire); text-align: center; padding: 20px;">
-                운세를 불러오지 못했습니다.<br>
-                <small>${e.message}</small>
-            </div>
-        `;
-    }
-}
-
-function updateTodaySaju(offset) {
-    const now = new Date();
-    now.setDate(now.getDate() + offset);
-    const hour = parseInt(document.getElementById('today-saju-hour')?.value || now.getHours());
-    const todaySaju = getFiveElements(now.getFullYear(), now.getMonth()+1, now.getDate(), hour, 'solar');
-    const container = document.getElementById('today-saju-container');
-    if (container) {
-        container.innerHTML = `
-            ${todaySaju.layoutHtml}
-            <div class="saju-element-counts">
-                <div class="saju-element-wood">목: ${todaySaju.counts['목']}</div>
-                <div class="saju-element-fire">화: ${todaySaju.counts['화']}</div>
-                <div class="saju-element-earth">토: ${todaySaju.counts['토']}</div>
-                <div class="saju-element-metal">금: ${todaySaju.counts['금']}</div>
-                <div class="saju-element-water">수: ${todaySaju.counts['수']}</div>
-            </div>
-        `;
-    }
-}
 
 // --- 6. Today's Philosophy ---
 
@@ -932,6 +534,15 @@ function toggleDeleuzeOverview() {
         content.style.display = 'none';
         btn.innerHTML = '이 100개를 이해하는 가장 중요한 10단계 펼치기 ▼';
     }
+}
+
+function formatPhilContent(text) {
+    if (!text) return '';
+    return text
+        .replace(/\[([^\]]+)\]\((https?:\/\/[^\)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer" class="tts-ignore" style="color:var(--primary); text-decoration:underline;">$1 ↗</a>')
+        .replace(/\*\*(.*?)\*\*/g, '<strong style="color:var(--text-primary); font-weight:700;">$1</strong>')
+        .replace(/\*(.*?)\*/g, '<em>$1</em>')
+        .replace(/\n/g, '<br>');
 }
 
 function initPhilosophy(forceIndex = null) {
@@ -1030,7 +641,7 @@ function initPhilosophy(forceIndex = null) {
         container.innerHTML = `
             ${chapterBadge}
             <div class="text-lg text-bold text-accent" style="margin: 10px 0 14px;">${displayTitle}</div>
-            <div class="philosophy-desc text-body">${item.content.replace(/\n/g, '<br>')}</div>
+            <div class="philosophy-desc text-body">${formatPhilContent(item.content)}</div>
             ${sourceBadge}
         `;
     }
@@ -1150,163 +761,12 @@ window.showPhilChapterPreview = function(index, btnEl = null) {
                 <button onclick="showPhilChapterPreview(${nextIdx})" style="background:rgba(255,255,255,0.05); border:1px solid var(--border); color:var(--text-primary); cursor:pointer; font-size:0.9rem; padding:4px 10px; border-radius:4px; transition:background 0.2s;">▶</button>
             </div>
             <h4 style="margin: 0 0 8px 0; color: var(--accent-light); font-size: 1.05rem;">${item.title}</h4>
-            <div class="text-body" style="font-size: 0.95rem; line-height: 1.6;">${item.content.replace(/\n/g, '<br>')}</div>
+            <div class="text-body" style="font-size: 0.95rem; line-height: 1.6;">${formatPhilContent(item.content)}</div>
         `;
         previewEl.style.display = 'block';
     }
 };
 
-// --- 5. KOSPI & Stocks ---
-async function initKospi(period = 'today') {
-    const container = document.getElementById('kospi-container');
-    try {
-        const res = await fetch('/api/kospi');
-        const data = await res.json();
-        const info = data.datas[0];
-        
-        const price = info.closePrice;
-        const priceRaw = info.closePriceRaw;
-        const ratio = info.fluctuationsRatio;
-        const change = info.compareToPreviousClosePrice;
-        
-        let colorClass = 'flat-color';
-        let sign = '';
-        let colorHex = '#888';
-        if (ratio > 0) { colorClass = 'up-color'; sign = '▲'; colorHex = '#ff5252';}
-        else if (ratio < 0) { colorClass = 'down-color'; sign = '▼'; colorHex = '#448aff';}
-        
-        container.innerHTML = `
-            <div class="kospi-info">
-                <div class="kospi-title">KOSPI</div>
-                <div class="kospi-value-row" style="display:flex; align-items: baseline; margin-top:4px;">
-                    <div class="kospi-value ${colorClass}">${price}</div>
-                    <div class="kospi-change-info" style="margin-left: 12px; font-size: 0.95rem;" class="${colorClass}">
-                        ${sign} ${Math.abs(change)} (${ratio > 0 ? '+' : ''}${ratio}%)
-                    </div>
-                </div>
-            </div>
-        `;
-        
-        
-        
-    } catch (e) {
-        console.error(e);
-        container.innerHTML = '<div style="color:var(--text-secondary);">코스피 정보를 불러올 수 없습니다.</div>';
-    }
-}
-
-async function initStocks(period = 'today') {
-    const grid = document.getElementById('stocks-grid');
-    const stocks = [
-        { code: '005930', name: '삼성전자' },
-        { code: '005935', name: '삼성전자(우)' },
-        { code: '000660', name: 'SK하이닉스' },
-        { code: '009150', name: '삼성전기' },
-        { code: '069500', name: 'KODEX 200' },
-        { code: '005380', name: '현대차' },
-        { code: '012330', name: '현대모비스' },
-        { code: '307950', name: '현대오토에버' }
-    ];
-    
-    // Only rebuild DOM if grid is empty (first load)
-    if (grid.children.length <= 1) {
-        grid.innerHTML = '';
-        for (const stock of stocks) {
-            const card = document.createElement('div');
-            card.className = 'stock-card';
-            card.innerHTML = `
-                <div class="stock-name">${stock.name}</div>
-                <div class="stock-price" id="price-${stock.code}">-</div>
-                <div class="stock-change" id="change-${stock.code}">-</div>
-            `;
-            grid.appendChild(card);
-        }
-    }
-    
-    for (const stock of stocks) {
-        try {
-            const res = await fetch(`/api/stock?code=${stock.code}`);
-            const data = await res.json();
-            const info = data.datas[0];
-            
-            const price = info.closePrice;
-            const priceRaw = info.closePriceRaw;
-            const ratio = info.fluctuationsRatio;
-            const change = info.compareToPreviousClosePrice;
-            
-            let colorClass = 'flat-color';
-            let sign = '';
-            let colorHex = '#888';
-            if (ratio > 0) { colorClass = 'up-color'; sign = '▲'; colorHex = '#ff5252'; }
-            else if (ratio < 0) { colorClass = 'down-color'; sign = '▼'; colorHex = '#448aff'; }
-            
-            document.getElementById(`price-${stock.code}`).textContent = price;
-            document.getElementById(`price-${stock.code}`).className = `stock-price ${colorClass}`;
-            
-            document.getElementById(`change-${stock.code}`).textContent = `${sign} ${Math.abs(change)} (${ratio > 0 ? '+' : ''}${ratio}%)`;
-            document.getElementById(`change-${stock.code}`).className = `stock-change ${colorClass}`;
-            
-            
-            
-        } catch (e) {
-            console.error(`Error fetching ${stock.name}:`, e);
-        }
-    }
-}
-
-async function drawHistoryChart(canvasId, code, period, currentPrice, colorHex) {
-    if (chartInstances[canvasId]) {
-        chartInstances[canvasId].destroy();
-    }
-    
-    let points = [];
-    
-    if (period === 'today') {
-        // Mock random walk for today
-        let p = currentPrice * (1 - (Math.random() * 0.02 - 0.01));
-        for (let i = 0; i < 19; i++) {
-            points.push(p);
-            p = p * (1 + (Math.random() * 0.01 - 0.005));
-        }
-        points.push(currentPrice); 
-    } else {
-        // Fetch history
-        try {
-            const res = await fetch(`/api/history?code=${code}&count=${period}`);
-            const data = await res.json();
-            points = data.history.map(item => item.close);
-        } catch (e) {
-            console.error(e);
-            return;
-        }
-    }
-    
-    const ctx = document.getElementById(canvasId).getContext('2d');
-    chartInstances[canvasId] = new Chart(ctx, {
-        type: 'line',
-        data: {
-            labels: Array.from({length: points.length}, (_, i) => i),
-            datasets: [{
-                data: points,
-                borderColor: colorHex,
-                borderWidth: 2,
-                tension: 0.1,
-                pointRadius: 0
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: { legend: { display: false }, tooltip: { enabled: false } },
-            scales: {
-                x: { display: false },
-                y: { display: false } // Removed min/max for auto-scaling
-            },
-            layout: { padding: { top: 5, bottom: 5 } },
-            animation: { duration: 400 }
-        }
-    });
-}
 
 // --- Navigation ---
 function changeOffset(type, direction) {
@@ -1320,9 +780,6 @@ function changeOffset(type, direction) {
         offsets.iching = (offsets.iching + direction) % len;
         if (offsets.iching < 0) offsets.iching += len;
         initIChing(offsets.iching);
-    } else if (type === 'saju') {
-        offsets.saju += direction;
-        initSaju(offsets.saju);
     }
 }
 
@@ -1335,6 +792,7 @@ function jumpToIChing(index) {
     offsets.iching = parseInt(index);
     initIChing(offsets.iching);
 }
+
 
 // --- TTS 기능 ---
 window.ttsRate = 1.0;
@@ -1362,14 +820,38 @@ window.toggleTTS = function(section) {
     const synth = window.speechSynthesis;
     const btn = document.getElementById(`tts-btn-${section}`);
     const pauseBtn = document.getElementById(`tts-pause-${section}`);
+
+    function resetBtnText(b) {
+        if (!b) return;
+        b.classList.remove('playing');
+        if (b.dataset.origText) {
+            b.innerHTML = b.dataset.origText;
+        } else if (b.classList.contains('purple')) {
+            b.innerHTML = '<span>🔊 한국학자 주석 낭독</span>';
+        } else if (b.classList.contains('tts-full-btn')) {
+            b.innerHTML = '<span>🔊 전체 주석 낭독</span>';
+        } else {
+            b.textContent = '🔊';
+        }
+    }
+
+    function setBtnPlayingText(b) {
+        if (!b) return;
+        if (!b.dataset.origText) {
+            b.dataset.origText = b.innerHTML;
+        }
+        b.classList.add('playing');
+        if (b.classList.contains('tts-full-btn') || (b.dataset.origText && (b.dataset.origText.includes('주석 낭독') || b.dataset.origText.includes('전체 낭독') || b.dataset.origText.includes('전체 주석')))) {
+            b.innerHTML = '<span>⏹️ 낭독 중지</span>';
+        } else {
+            b.textContent = '⏹️';
+        }
+    }
     
     // 이미 현재 섹션을 읽고 있다면 중지
     if (synth.speaking && currentPlayingSection === section) {
         synth.cancel();
-        if (btn) {
-            btn.textContent = '🔊';
-            btn.classList.remove('playing');
-        }
+        resetBtnText(btn);
         if (pauseBtn) pauseBtn.style.display = 'none';
         currentPlayingSection = null;
         return;
@@ -1381,10 +863,7 @@ window.toggleTTS = function(section) {
         if (currentPlayingSection) {
             const oldBtn = document.getElementById(`tts-btn-${currentPlayingSection}`);
             const oldPauseBtn = document.getElementById(`tts-pause-${currentPlayingSection}`);
-            if (oldBtn) {
-                oldBtn.textContent = '🔊';
-                oldBtn.classList.remove('playing');
-            }
+            resetBtnText(oldBtn);
             if (oldPauseBtn) oldPauseBtn.style.display = 'none';
         }
     }
@@ -1397,14 +876,15 @@ window.toggleTTS = function(section) {
     if (contentEl) {
         const clone = contentEl.cloneNode(true);
         // 배지나 불필요한 라벨, 버튼, 네비게이션 날짜 제거
-        const ignores = clone.querySelectorAll('.label-badge, .tts-ignore, button, select, input, .nav-date, .tts-speed-btn');
+        const ignores = clone.querySelectorAll('.label-badge, .tts-ignore, button, select, input, .nav-date, .tts-speed-btn, details summary, .korean-scholars-toolbar');
         ignores.forEach(b => b.remove());
         
         // 블록 요소(문단, 제목 등)가 끝날 때 마침표와 공백을 추가하여 TTS가 자연스럽게 띄어 읽도록 유도
         let htmlStr = clone.innerHTML;
         htmlStr = htmlStr.replace(/<\/p>/gi, '. </p>');
-        htmlStr = htmlStr.replace(/<\/h[1-6]>/gi, '. </h5>'); // Replace with a generic closing tag just in case
+        htmlStr = htmlStr.replace(/<\/h[1-6]>/gi, '. </h5>');
         htmlStr = htmlStr.replace(/<br\s*\/?>/gi, '. ');
+        htmlStr = htmlStr.replace(/<\/div>/gi, '.\n</div>');
         clone.innerHTML = htmlStr;
         
         textToRead = clone.textContent || '';
@@ -1424,6 +904,21 @@ window.toggleTTS = function(section) {
             }
         }
         
+        // 1. URL 제거 (TTS가 영어 URL 주소를 알파벳 하나씩 읽는 것 방지)
+        textToRead = textToRead.replace(/https?:\/\/[^\s\)]+/g, '');
+        // 2. 마크다운 링크 [제목](URL) -> 제목
+        textToRead = textToRead.replace(/\[([^\]]+)\]\([^\)]*\)/g, '$1');
+        // 3. 마크다운 볼드/이탤릭 기호 제거 (**강조**, *기울임*, __강조__)
+        textToRead = textToRead.replace(/\*\*(.*?)\*\*/g, '$1');
+        textToRead = textToRead.replace(/\*(.*?)\*/g, '$1');
+        textToRead = textToRead.replace(/__([^_]+)__/g, '$1');
+        textToRead = textToRead.replace(/_([^_]+)_/g, '$1');
+        textToRead = textToRead.replace(/[`#~*]/g, '');
+        // 4. 대괄호 및 특수괄호 [ ], 【 】, 《 》 기호 읽기 완화 (기호 호명 방지)
+        textToRead = textToRead.replace(/[\[\]【】《》]/g, ' ');
+        // 5. 한자 병기 중복 호명 완화: 예) 왕필 (王弼) -> 왕필, 주희 (朱熹) -> 주희
+        textToRead = textToRead.replace(/([가-힣]{2,4})\s*\([一-龥]+\)/g, '$1');
+        
         // 이모지 및 특수 기호 완벽 제거
         textToRead = textToRead.replace(/[\u2700-\u27BF]|[\uE000-\uF8FF]|\uD83C[\uDC00-\uDFFF]|\uD83D[\uDC00-\uDFFF]|[\u2011-\u26FF]|\uD83E[\uDD10-\uDDFF]/g, '');
         
@@ -1439,33 +934,23 @@ window.toggleTTS = function(section) {
     currentUtterance.rate = window.ttsRate || 1.0;
     
     currentUtterance.onend = () => {
-        if (btn) {
-            btn.textContent = '🔊';
-            btn.classList.remove('playing');
-        }
+        resetBtnText(btn);
         if (pauseBtn) pauseBtn.style.display = 'none';
         currentPlayingSection = null;
     };
     
     currentUtterance.onerror = (e) => {
         console.error('TTS Error:', e);
-        if (btn) {
-            btn.textContent = '🔊';
-            btn.classList.remove('playing');
-        }
+        resetBtnText(btn);
         if (pauseBtn) pauseBtn.style.display = 'none';
         currentPlayingSection = null;
     };
     
-    if (btn) {
-        btn.textContent = '⏹️';
-        btn.classList.add('playing');
-    }
+    setBtnPlayingText(btn);
     if (pauseBtn) {
         pauseBtn.style.display = 'inline-flex';
         pauseBtn.textContent = '⏸️';
     }
-    
     currentPlayingSection = section;
     synth.speak(currentUtterance);
 };
@@ -1486,6 +971,7 @@ window.pauseTTS = function() {
         }
     }
 };
+
 
 // --- Shortcuts Management ---
 const DEFAULT_SHORTCUTS = [
